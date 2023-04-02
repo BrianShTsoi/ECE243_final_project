@@ -63,7 +63,6 @@ const int MAX_BOX_Y =  RESOLUTION_Y - BOX_LEN;
 const short int COLORS[10] = {WHITE, YELLOW, RED, GREEN, BLUE, 
                                 CYAN, MAGENTA, GREY, PINK, ORANGE};
 
-// Begin part3.c code for Lab 7
 void plot_pixel(int x, int y, short int color);
 void clear_screen();
 void draw_line(int x0, int y0, int x1, int y1, short int line_color);
@@ -85,28 +84,25 @@ void draw_box_line(struct Box box0, struct Box box1);
 void erase_lines(struct Box boxes[NUM_BOXES]);
 void draw_lines(struct Box boxes[NUM_BOXES]);
 
-volatile int pixel_buffer_start; // global variable
+volatile int g_pixel_back_buffer; // global variable
+volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 
 int main(void) {
-    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    // declare other variables(not shown)
-    // struct Box box = {300, 200, 1, 1, WHITE};
     struct Box boxes[NUM_BOXES];
     set_up_boxes(boxes);
-    // initialize location and direction of rectangles(not shown)
 
     /* set front pixel buffer to start of FPGA On-chip memory */
-    *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
+    *(G_PIXEL_BUF_CTRL_PTR + 1) = FPGA_ONCHIP_BASE; // first store the address in the 
                                         // back buffer
     /* now, swap the front/back buffers, to set the front buffer location */
     wait_for_vsync();
     /* initialize a pointer to the pixel buffer, used by drawing functions */
-    pixel_buffer_start = *pixel_ctrl_ptr;
-    clear_screen(); // pixel_buffer_start points to the pixel buffer
+    g_pixel_back_buffer = *G_PIXEL_BUF_CTRL_PTR;
+    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
     /* set back pixel buffer to start of SDRAM memory */
-    *(pixel_ctrl_ptr + 1) = 0xC0000000;
-    pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-    clear_screen(); // pixel_buffer_start points to the pixel buffer
+    *(G_PIXEL_BUF_CTRL_PTR + 1) = SDRAM_BASE;
+    g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // we draw on the back buffer
+    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
 
     while (1)
     {
@@ -117,12 +113,12 @@ int main(void) {
         move_boxes(boxes);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
-        pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+        g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
     }
 }
 
 void plot_pixel(int x, int y, short int color) {
-    *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = color;
+    *(short int *)(g_pixel_back_buffer + (y << 10) + (x << 1)) = color;
 }
 
 void clear_screen() {
@@ -130,7 +126,7 @@ void clear_screen() {
     int j;
     for (i = 0; i < RESOLUTION_X; i++) {
         for (j = 0; j < RESOLUTION_Y; j++) {
-            plot_pixel(i, j, 0); // 0 is black
+            plot_pixel(i, j, BLACK); // 0 is black
         }
     }
 }
@@ -177,14 +173,13 @@ void swap(int* num0, int* num1) {
 }
 
 void wait_for_vsync() {
-    volatile int* pixel_ctrl_ptr = 0xFF203020;
     register int status;
 
-    *pixel_ctrl_ptr = 1;
+    *G_PIXEL_BUF_CTRL_PTR = 1;
 
-    status = *(pixel_ctrl_ptr + 3);
+    status = *(G_PIXEL_BUF_CTRL_PTR + 3);
     while ((status & 0x01) != 0) {
-        status = *(pixel_ctrl_ptr + 3);
+        status = *(G_PIXEL_BUF_CTRL_PTR + 3);
     }
 }
 
