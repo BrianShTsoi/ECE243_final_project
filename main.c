@@ -79,7 +79,7 @@ void move_boxes(struct Box boxes[NUM_BOXES]);
 
 void construct_box(struct Box* box, int x, int y, int dx, int dy, short int color);
 void set_up_box(struct Box* box);
-void setup_boxes(struct Box boxes[NUM_BOXES]);
+void set_up_boxes(struct Box boxes[NUM_BOXES]);
 void draw_box_line(struct Box box0, struct Box box1);
 void erase_lines(struct Box boxes[NUM_BOXES]);
 void draw_lines(struct Box boxes[NUM_BOXES]);
@@ -92,7 +92,7 @@ int main(void) {
     // declare other variables(not shown)
     // struct Box box = {300, 200, 1, 1, WHITE};
     struct Box boxes[NUM_BOXES];
-    setup_boxes(boxes);
+    set_up_boxes(boxes);
     // initialize location and direction of rectangles(not shown)
 
     /* set front pixel buffer to start of FPGA On-chip memory */
@@ -296,7 +296,7 @@ void set_up_box(struct Box* box) {
     construct_box(box, rand() % MAX_BOX_X, rand() % MAX_BOX_Y, (rand() % 2 * 2) - 1, (rand() % 2 * 2) - 1, COLORS[rand() & 10]);
 }
 
-void setup_boxes(struct Box boxes[NUM_BOXES]) {
+void set_up_boxes(struct Box boxes[NUM_BOXES]) {
     srand(time(NULL));
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
