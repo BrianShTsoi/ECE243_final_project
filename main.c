@@ -36,6 +36,7 @@
 /* Constants for animation */
 #define BOX_LEN 10
 #define NUM_BOXES 6
+#define INIT_GRID_SIZE 4
 
 #define FALSE 0
 #define TRUE 1
@@ -80,6 +81,7 @@ void move_boxes(struct Box boxes[NUM_BOXES]);
 struct Box construct_box(int x, int y, int dx, int dy, short int color);
 void set_up_random_box(struct Box* box);
 void set_up_random_boxes(struct Box boxes[NUM_BOXES]);
+int coord_exist(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y);
 void set_up_still_boxes(struct Box boxes[NUM_BOXES]);
 void set_up_pixel_buf_ctrl();
 
@@ -276,12 +278,32 @@ void set_up_random_boxes(struct Box boxes[NUM_BOXES]) {
     }
 }
 
+int coord_exist(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y) {
+    int i;
+    for (i = 0; i < num_existing_box; i++) {
+        if (boxes[i].x == x && boxes[i].y == y) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
-    int coord_spacing = BOX_LEN * 3;
+    srand(time(NULL));
+    int x_spacing = MAX_BOX_X / (INIT_GRID_SIZE + 1);
+    int y_spacing = MAX_BOX_Y / (INIT_GRID_SIZE + 1);
+
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
+        int x, y;
+        do {
+            x = ((rand() % INIT_GRID_SIZE) + 1) * x_spacing;
+            y = ((rand() % INIT_GRID_SIZE) + 1) * y_spacing;
+
+        } while (coord_exist(boxes, i, x, y));
+
         short int color = COLORS[rand() % 10];
-        boxes[i] = construct_box(i*coord_spacing, i*coord_spacing, 0, 0, color);
+        boxes[i] = construct_box(x, y, 0, 0, color);
     }
 }
 
