@@ -84,7 +84,6 @@ void draw_box_line(struct Box box0, struct Box box1);
 void erase_lines(struct Box boxes[NUM_BOXES]);
 void draw_lines(struct Box boxes[NUM_BOXES]);
 
-
 volatile int pixel_buffer_start; // global variable
 
 int main(void) {
@@ -279,21 +278,28 @@ void construct_box(struct Box* box, int x, int y, int dx, int dy, short int colo
     box->prior_y = -1;
 
     box->color = color;
-
-    if (box->x == 0) {
-        box->dx = 1;
-    } else if (box->x == MAX_BOX_X) {
-        box->dx = -1;
-    }
-    if (box->y == 0) {
-        box->dy = 1;
-    } else if (box->y == MAX_BOX_Y) {
-        box->dy = -1;
-    }
 }
 
 void set_up_box(struct Box* box) {
-    construct_box(box, rand() % MAX_BOX_X, rand() % MAX_BOX_Y, (rand() % 2 * 2) - 1, (rand() % 2 * 2) - 1, COLORS[rand() & 10]);
+    int x = rand() % MAX_BOX_X;
+    int y = rand() % MAX_BOX_Y;
+    int dx = (rand() % 2 * 2) - 1;
+    int dy = (rand() % 2 * 2) - 1;
+    short int color = COLORS[rand() % 10];
+
+    if (x == 0) {
+        dx = 1;
+    } else if (x == MAX_BOX_X) {
+        dx = -1;
+    }
+
+    if (y == 0) {
+        dy = 1;
+    } else if (y == MAX_BOX_Y) {
+        dy = -1;
+    }
+
+    construct_box(box, x, y, dx, dy, color);
 }
 
 void set_up_boxes(struct Box boxes[NUM_BOXES]) {
