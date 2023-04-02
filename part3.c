@@ -63,7 +63,7 @@ void draw_line(int x0, int y0, int x1, int y1, short int line_color);
 void swap(int* num0, int* num1);
 void wait_for_vsync();
 
-struct Box prev_box(struct Box box);
+struct Box prior_box(struct Box box);
 void erase_box(struct Box box);
 void erase_boxes(struct Box boxes[NUM_BOXES]);
 void draw_box(struct Box box);
@@ -189,35 +189,35 @@ void wait_for_vsync() {
     }
 }
 
-struct Box prev_box(struct Box box) {
-    struct Box prev_box;
-    prev_box.x = box.x - 2 * box.dx;
-    prev_box.y = box.y - 2 * box.dy;
-    prev_box.dx = box.dx;
-    prev_box.dy = box.dy;
-    prev_box.color = 0;
+struct Box prior_box(struct Box box) {
+    struct Box prior_box;
+    prior_box.x = box.x - 2 * box.dx;
+    prior_box.y = box.y - 2 * box.dy;
+    prior_box.dx = box.dx;
+    prior_box.dy = box.dy;
+    prior_box.color = 0;
     // Check if invalid, then "mirror"
-    if (prev_box.x < 0) {
-        prev_box.x -= 2 * (prev_box.x);
-        prev_box.dx *= -1;
-    } else if (prev_box.x > MAX_BOX_X) {
-        prev_box.x -= 2 * (prev_box.x - MAX_BOX_X);
-        prev_box.dx *= -1;
+    if (prior_box.x < 0) {
+        prior_box.x -= 2 * (prior_box.x);
+        prior_box.dx *= -1;
+    } else if (prior_box.x > MAX_BOX_X) {
+        prior_box.x -= 2 * (prior_box.x - MAX_BOX_X);
+        prior_box.dx *= -1;
     }
 
-    if (prev_box.y < 0) {
-        prev_box.y -= 2 * (prev_box.y);
-        prev_box.dy *= -1;
-    } else if (prev_box.y > MAX_BOX_Y) {
-        prev_box.y -= 2 * (prev_box.y - MAX_BOX_Y);
-        prev_box.dy *= -1;
+    if (prior_box.y < 0) {
+        prior_box.y -= 2 * (prior_box.y);
+        prior_box.dy *= -1;
+    } else if (prior_box.y > MAX_BOX_Y) {
+        prior_box.y -= 2 * (prior_box.y - MAX_BOX_Y);
+        prior_box.dy *= -1;
     }
 
-    return prev_box;
+    return prior_box;
 }
 
 void erase_box(struct Box box) {
-    draw_box(prev_box(box));
+    draw_box(prior_box(box));
 }
 
 void erase_boxes(struct Box boxes[NUM_BOXES]) {
@@ -296,7 +296,7 @@ void draw_box_line(struct Box box0, struct Box box1) {
 void erase_lines(struct Box boxes[NUM_BOXES]) {
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
-        draw_box_line(prev_box(boxes[i]), prev_box(boxes[(i + 1) % NUM_BOXES]));
+        draw_box_line(prior_box(boxes[i]), prior_box(boxes[(i + 1) % NUM_BOXES]));
     }
 }
 
