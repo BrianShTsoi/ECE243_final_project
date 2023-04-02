@@ -34,7 +34,7 @@
 #define RESOLUTION_Y 240
 
 /* Constants for animation */
-#define BOX_LEN 2
+#define BOX_LEN 10
 #define NUM_BOXES 6
 
 #define FALSE 0
@@ -78,8 +78,9 @@ void move_box(struct Box* box);
 void move_boxes(struct Box boxes[NUM_BOXES]);
 
 struct Box construct_box(int x, int y, int dx, int dy, short int color);
-void set_up_box(struct Box* box);
-void set_up_boxes(struct Box boxes[NUM_BOXES]);
+void set_up_random_box(struct Box* box);
+void set_up_random_boxes(struct Box boxes[NUM_BOXES]);
+void set_up_still_boxes(struct Box boxes[NUM_BOXES]);
 void set_up_pixel_buf_ctrl();
 
 void draw_box_line(struct Box box0, struct Box box1);
@@ -91,14 +92,15 @@ volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 
 int main(void) {
     struct Box boxes[NUM_BOXES];
-    set_up_boxes(boxes);
+    // set_up_random_boxes(boxes);
+    set_up_still_boxes(boxes);
     set_up_pixel_buf_ctrl();
 
     while (1) {
         erase_boxes(boxes);
-        erase_lines(boxes);
+        // erase_lines(boxes);
         draw_boxes(boxes);
-        draw_lines(boxes);
+        // draw_lines(boxes);
         move_boxes(boxes);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
@@ -244,7 +246,7 @@ struct Box construct_box(int x, int y, int dx, int dy, short int color) {
     return box;
 }
 
-void set_up_box(struct Box* box) {
+void set_up_random_box(struct Box* box) {
     int x = rand() % MAX_BOX_X;
     int y = rand() % MAX_BOX_Y;
     int dx = (rand() % 2 * 2) - 1;
@@ -266,11 +268,20 @@ void set_up_box(struct Box* box) {
     *box = construct_box(x, y, dx, dy, color);
 }
 
-void set_up_boxes(struct Box boxes[NUM_BOXES]) {
+void set_up_random_boxes(struct Box boxes[NUM_BOXES]) {
     srand(time(NULL));
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
-        set_up_box(&boxes[i]);
+        set_up_random_box(&boxes[i]);
+    }
+}
+
+void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
+    int coord_spacing = BOX_LEN * 3;
+    int i;
+    for (i = 0; i < NUM_BOXES; i++) {
+        short int color = COLORS[rand() % 10];
+        boxes[i] = construct_box(i*coord_spacing, i*coord_spacing, 0, 0, color);
     }
 }
 
