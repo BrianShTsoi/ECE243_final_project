@@ -80,6 +80,8 @@ void move_boxes(struct Box boxes[NUM_BOXES]);
 void construct_box(struct Box* box, int x, int y, int dx, int dy, short int color);
 void set_up_box(struct Box* box);
 void set_up_boxes(struct Box boxes[NUM_BOXES]);
+void set_up_pixel_buf_ctrl();
+
 void draw_box_line(struct Box box0, struct Box box1);
 void erase_lines(struct Box boxes[NUM_BOXES]);
 void draw_lines(struct Box boxes[NUM_BOXES]);
@@ -90,22 +92,9 @@ volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 int main(void) {
     struct Box boxes[NUM_BOXES];
     set_up_boxes(boxes);
+    set_up_pixel_buf_ctrl();
 
-    /* set front pixel buffer to start of FPGA On-chip memory */
-    *(G_PIXEL_BUF_CTRL_PTR + 1) = FPGA_ONCHIP_BASE; // first store the address in the 
-                                        // back buffer
-    /* now, swap the front/back buffers, to set the front buffer location */
-    wait_for_vsync();
-    /* initialize a pointer to the pixel buffer, used by drawing functions */
-    g_pixel_back_buffer = *G_PIXEL_BUF_CTRL_PTR;
-    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
-    /* set back pixel buffer to start of SDRAM memory */
-    *(G_PIXEL_BUF_CTRL_PTR + 1) = SDRAM_BASE;
-    g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // we draw on the back buffer
-    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
-
-    while (1)
-    {
+    while (1) {
         erase_boxes(boxes);
         erase_lines(boxes);
         draw_boxes(boxes);
@@ -157,6 +146,7 @@ void draw_line(int x0, int y0, int x1, int y1, short int line_color) {
             plot_pixel(y, x, line_color);
         else
             plot_pixel(x, y, line_color);
+
         error = error + dy;
         if (error > 0) {
             y = y + y_step;
@@ -282,6 +272,21 @@ void set_up_boxes(struct Box boxes[NUM_BOXES]) {
     for (i = 0; i < NUM_BOXES; i++) {
         set_up_box(&boxes[i]);
     }
+}
+
+void set_up_pixel_buf_ctrl() {
+    /* set front pixel buffer to start of FPGA On-chip memory */
+    *(G_PIXEL_BUF_CTRL_PTR + 1) = FPGA_ONCHIP_BASE; // first store the address in the back buffer
+    /* initialize a pointer to the pixel buffer, used by drawing functions */
+    g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1);
+    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
+    /* now, swap the front/back buffers, to set the front buffer location */
+    wait_for_vsync();
+
+    /* set back pixel buffer to start of SDRAM memory */
+    *(G_PIXEL_BUF_CTRL_PTR + 1) = SDRAM_BASE;
+    g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // we draw on the back buffer
+    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
 }
 
 void draw_box_line(struct Box box0, struct Box box1) {
