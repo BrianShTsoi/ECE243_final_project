@@ -25,6 +25,7 @@
 #define GREY 0xC618
 #define PINK 0xFC18
 #define ORANGE 0xFC00
+#define BLACK 0x0000
 
 #define ABS(x) (((x) > 0) ? (x) : -(x))
 
@@ -34,7 +35,7 @@
 
 /* Constants for animation */
 #define BOX_LEN 2
-#define NUM_BOXES 8
+#define NUM_BOXES 6
 
 #define FALSE 0
 #define TRUE 1
@@ -69,7 +70,7 @@ void draw_line(int x0, int y0, int x1, int y1, short int line_color);
 void swap(int* num0, int* num1);
 void wait_for_vsync();
 
-struct Box prev_box(struct Box box);
+struct Box prior_box(struct Box box);
 void erase_box(struct Box box);
 void erase_boxes(struct Box boxes[NUM_BOXES]);
 void draw_box(struct Box box);
@@ -109,18 +110,11 @@ int main(void) {
 
     while (1)
     {
-        /* Erase any boxes and lines that were drawn in the last iteration */
-        // erase_box(box);
-        // draw_box(box);
-        // move_box(&box);
         erase_boxes(boxes);
         erase_lines(boxes);
         draw_boxes(boxes);
         draw_lines(boxes);
         move_boxes(boxes);
-
-        // code for drawing the boxes and lines (not shown)
-        // code for updating the locations of boxes (not shown)
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
@@ -194,35 +188,15 @@ void wait_for_vsync() {
     }
 }
 
-struct Box prev_box(struct Box box) {
-    struct Box prev_box;
-    prev_box.x = box.x - 2 * box.dx;
-    prev_box.y = box.y - 2 * box.dy;
-    prev_box.dx = box.dx;
-    prev_box.dy = box.dy;
-    prev_box.color = 0;
-    // Check if invalid, then "mirror"
-    if (prev_box.x < 0) {
-        prev_box.x -= 2 * (prev_box.x);
-        prev_box.dx *= -1;
-    } else if (prev_box.x > MAX_BOX_X) {
-        prev_box.x -= 2 * (prev_box.x - MAX_BOX_X);
-        prev_box.dx *= -1;
-    }
-
-    if (prev_box.y < 0) {
-        prev_box.y -= 2 * (prev_box.y);
-        prev_box.dy *= -1;
-    } else if (prev_box.y > MAX_BOX_Y) {
-        prev_box.y -= 2 * (prev_box.y - MAX_BOX_Y);
-        prev_box.dy *= -1;
-    }
-
-    return prev_box;
+struct Box prior_box(struct Box box) {
+    struct Box prior_box;
+    construct_box(&prior_box, box.prior_x, box.prior_y, 0, 0, BLACK);
+    return prior_box;
 }
 
 void erase_box(struct Box box) {
-    draw_box(prev_box(box));
+    if (box.prior_x != -1 && box.prior_y != -1)
+        draw_box(prior_box(box));
 }
 
 void erase_boxes(struct Box boxes[NUM_BOXES]) {
@@ -249,6 +223,11 @@ void draw_boxes(struct Box boxes[NUM_BOXES]) {
 }
 
 void move_box(struct Box* box) {
+    box->prior_x = box->prev_x;
+    box->prior_y = box->prev_y;
+    box->prev_x = box->x;
+    box->prev_y = box->y;
+
     box->x += box->dx;
     box->y += box->dy;
     if (box->x == 0 || box->x == MAX_BOX_X) {
@@ -317,7 +296,8 @@ void draw_box_line(struct Box box0, struct Box box1) {
 void erase_lines(struct Box boxes[NUM_BOXES]) {
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
-        draw_box_line(prev_box(boxes[i]), prev_box(boxes[(i + 1) % NUM_BOXES]));
+        if (boxes[i].prior_x != -1 && boxes[i].prior_y != -1)
+            draw_box_line(prior_box(boxes[i]), prior_box(boxes[(i + 1) % NUM_BOXES]));
     }
 }
 
