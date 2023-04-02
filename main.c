@@ -77,7 +77,7 @@ void draw_boxes(struct Box boxes[NUM_BOXES]);
 void move_box(struct Box* box);
 void move_boxes(struct Box boxes[NUM_BOXES]);
 
-void construct_box(struct Box* box, int x, int y, int dx, int dy, short int color);
+struct Box construct_box(int x, int y, int dx, int dy, short int color);
 void set_up_box(struct Box* box);
 void set_up_boxes(struct Box boxes[NUM_BOXES]);
 void set_up_pixel_buf_ctrl();
@@ -174,9 +174,7 @@ void wait_for_vsync() {
 }
 
 struct Box prior_box(struct Box box) {
-    struct Box prior_box;
-    construct_box(&prior_box, box.prior_x, box.prior_y, 0, 0, BLACK);
-    return prior_box;
+    return construct_box(box.prior_x, box.prior_y, 0, 0, BLACK);
 }
 
 void erase_box(struct Box box) {
@@ -230,18 +228,20 @@ void move_boxes(struct Box boxes[NUM_BOXES]) {
     }
 }
 
-void construct_box(struct Box* box, int x, int y, int dx, int dy, short int color) {
-    box->x = x;
-    box->y = y;
-    box->dx = dx;
-    box->dy = dy;
+struct Box construct_box(int x, int y, int dx, int dy, short int color) {
+    struct Box box;
+    box.x = x;
+    box.y = y;
+    box.dx = dx;
+    box.dy = dy;
 
-    box->prev_x = -1;
-    box->prev_y = -1;
-    box->prior_x = -1;
-    box->prior_y = -1;
+    box.prev_x = -1;
+    box.prev_y = -1;
+    box.prior_x = -1;
+    box.prior_y = -1;
 
-    box->color = color;
+    box.color = color;
+    return box;
 }
 
 void set_up_box(struct Box* box) {
@@ -263,7 +263,7 @@ void set_up_box(struct Box* box) {
         dy = -1;
     }
 
-    construct_box(box, x, y, dx, dy, color);
+    *box = construct_box(x, y, dx, dy, color);
 }
 
 void set_up_boxes(struct Box boxes[NUM_BOXES]) {
