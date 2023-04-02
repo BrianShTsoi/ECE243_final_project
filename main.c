@@ -48,6 +48,12 @@ struct Box {
     int y; 
     int dx; 
     int dy; 
+
+    int prev_x;
+    int prev_y;
+    int prior_x;
+    int prior_y;
+
     short int color;
 };
 
@@ -70,6 +76,8 @@ void draw_box(struct Box box);
 void draw_boxes(struct Box boxes[NUM_BOXES]);
 void move_box(struct Box* box);
 void move_boxes(struct Box boxes[NUM_BOXES]);
+
+void construct_box(struct Box* box, int x, int y, int dx, int dy, short int color);
 void set_up_box(struct Box* box);
 void setup_boxes(struct Box boxes[NUM_BOXES]);
 void draw_box_line(struct Box box0, struct Box box1);
@@ -120,13 +128,11 @@ int main(void) {
     }
 }
 
-void plot_pixel(int x, int y, short int color)
-{
+void plot_pixel(int x, int y, short int color) {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = color;
 }
 
-void clear_screen() 
-{
+void clear_screen() {
     int i;
     int j;
     for (i = 0; i < RESOLUTION_X; i++) {
@@ -261,14 +267,19 @@ void move_boxes(struct Box boxes[NUM_BOXES]) {
     }
 }
 
-void set_up_box(struct Box* box) {
-    box->x = rand() % MAX_BOX_X;
-    box->y = rand() % MAX_BOX_Y;
-    box->dx = (rand() % 2 * 2) - 1;
-    box->dy = (rand() % 2 * 2) - 1;
-    box->color = COLORS[rand() % 10];
+void construct_box(struct Box* box, int x, int y, int dx, int dy, short int color) {
+    box->x = x;
+    box->y = y;
+    box->dx = dx;
+    box->dy = dy;
 
-    // Check for dx and dy
+    box->prev_x = -1;
+    box->prev_y = -1;
+    box->prior_x = -1;
+    box->prior_y = -1;
+
+    box->color = color;
+
     if (box->x == 0) {
         box->dx = 1;
     } else if (box->x == MAX_BOX_X) {
@@ -279,6 +290,10 @@ void set_up_box(struct Box* box) {
     } else if (box->y == MAX_BOX_Y) {
         box->dy = -1;
     }
+}
+
+void set_up_box(struct Box* box) {
+    construct_box(box, rand() % MAX_BOX_X, rand() % MAX_BOX_Y, (rand() % 2 * 2) - 1, (rand() % 2 * 2) - 1, COLORS[rand() & 10]);
 }
 
 void setup_boxes(struct Box boxes[NUM_BOXES]) {
