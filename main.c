@@ -1,18 +1,4 @@
-/* This files provides address values that exist in the system */
-
-#define SDRAM_BASE            0xC0000000
-#define FPGA_ONCHIP_BASE      0xC8000000
-#define FPGA_CHAR_BASE        0xC9000000
-
-/* Cyclone V FPGA devices */
-#define LEDR_BASE             0xFF200000
-#define HEX3_HEX0_BASE        0xFF200020
-#define HEX5_HEX4_BASE        0xFF200030
-#define SW_BASE               0xFF200040
-#define KEY_BASE              0xFF200050
-#define TIMER_BASE            0xFF202000
-#define PIXEL_BUF_CTRL_BASE   0xFF203020
-#define CHAR_BUF_CTRL_BASE    0xFF203030
+#include "address_map_arm.h"
 
 /* VGA colors */
 #define WHITE 0xFFFF
