@@ -33,7 +33,8 @@ void config_GIC(void) {
     int address; // used to calculate register addresses
     
     // configure PS/2 interrupt
-    *((int *)0xFFFED108) = 0xF;
+    *((int *)0xFFFED108) = 0x00008000;
+    // potentially set bits of ICDICFRn for PS/2 to 0'b10 for edge-triggered behaviour
 
     // set Interrupt Priority Mask Register (ICCPMR), enable interrupts of all
     // priorities
