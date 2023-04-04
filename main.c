@@ -82,6 +82,8 @@ struct Box construct_box(int x, int y, int dx, int dy, short int color);
 void set_up_random_box(struct Box* box);
 void set_up_random_boxes(struct Box boxes[NUM_BOXES]);
 int coord_exist(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y);
+int points_colinear(int x0, int y0, int x1, int y1, int x2, int y2);
+int box_colinear(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y);
 void set_up_still_boxes(struct Box boxes[NUM_BOXES]);
 void set_up_pixel_buf_ctrl();
 
@@ -288,19 +290,47 @@ int coord_exist(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y)
     return FALSE;
 }
 
+int points_colinear(int x0, int y0, int x1, int y1, int x2, int y2) {
+    int area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+    if (area == 0) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+int box_colinear(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y) {
+    if (num_existing_box == 0 || num_existing_box == 1) {
+        return FALSE;
+    }
+
+    int i, j;
+    for (i = 0; i < num_existing_box; i++) {
+        for (j = i + 1; j < num_existing_box; j++) {
+            if (i == j) continue;
+
+            if (points_colinear(boxes[i].x, boxes[i].y, boxes[j].x, boxes[j].y, x, y)) {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
 void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
     srand(time(NULL));
-    int x_spacing = MAX_BOX_X / (INIT_GRID_SIZE + 1);
-    int y_spacing = MAX_BOX_Y / (INIT_GRID_SIZE + 1);
+    // int x_spacing = MAX_BOX_X / (INIT_GRID_SIZE + 1);
+    // int y_spacing = MAX_BOX_Y / (INIT_GRID_SIZE + 1);
 
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
         int x, y;
         do {
-            x = ((rand() % INIT_GRID_SIZE) + 1) * x_spacing;
-            y = ((rand() % INIT_GRID_SIZE) + 1) * y_spacing;
+            // x = ((rand() % INIT_GRID_SIZE) + 1) * x_spacing;
+            // y = ((rand() % INIT_GRID_SIZE) + 1) * y_spacing;
+            x = (rand() % MAX_BOX_X);
+            y = (rand() % MAX_BOX_Y);
 
-        } while (coord_exist(boxes, i, x, y));
+        } while (coord_exist(boxes, i, x, y) || box_colinear(boxes, i, x, y));
 
         short int color = COLORS[rand() % 10];
         boxes[i] = construct_box(x, y, 0, 0, color);
