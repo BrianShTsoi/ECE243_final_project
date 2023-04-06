@@ -74,8 +74,8 @@ void move_box(struct Box* box);
 void move_boxes(struct Box boxes[NUM_BOXES]);
 
 struct Box construct_box(int x, int y, int dx, int dy, short int color);
-void set_up_random_box(struct Box* box);
-void set_up_random_boxes(struct Box boxes[NUM_BOXES]);
+void set_up_moving_box(struct Box* box);
+void set_up_moving_boxes(struct Box boxes[NUM_BOXES]);
 int coord_exist(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y);
 int points_colinear(int x0, int y0, int x1, int y1, int x2, int y2);
 int box_colinear(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y);
@@ -83,8 +83,6 @@ void set_up_still_boxes(struct Box boxes[NUM_BOXES]);
 void set_up_pixel_buf_ctrl();
 
 void draw_box_line(struct Box box0, struct Box box1);
-void erase_lines(struct Box boxes[NUM_BOXES]);
-void draw_lines(struct Box boxes[NUM_BOXES]);
 
 void set_up_edges(struct Box boxes[NUM_BOXES]);
 void draw_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
@@ -99,16 +97,14 @@ int main(void) {
     set_up_pixel_buf_ctrl();
 
     struct Box boxes[NUM_BOXES];
-    set_up_random_boxes(boxes);
+    set_up_moving_boxes(boxes);
+    set_up_still_boxes(boxes);
     set_up_edges(boxes);
-    // set_up_still_boxes(boxes);
 
     while (1) {
         erase_boxes(boxes);
-        // erase_lines(boxes);
         erase_edges(boxes);
         draw_boxes(boxes);
-        // draw_lines(boxes);
         draw_edges(boxes);
         move_boxes(boxes);
 
@@ -257,7 +253,7 @@ struct Box construct_box(int x, int y, int dx, int dy, short int color) {
     return box;
 }
 
-void set_up_random_box(struct Box* box) {
+void set_up_moving_box(struct Box* box) {
     int x = rand() % MAX_BOX_X;
     int y = rand() % MAX_BOX_Y;
     int dx = (rand() % 2 * 2) - 1;
@@ -279,11 +275,11 @@ void set_up_random_box(struct Box* box) {
     *box = construct_box(x, y, dx, dy, color);
 }
 
-void set_up_random_boxes(struct Box boxes[NUM_BOXES]) {
+void set_up_moving_boxes(struct Box boxes[NUM_BOXES]) {
     srand(time(NULL));
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
-        set_up_random_box(&boxes[i]);
+        set_up_moving_box(&boxes[i]);
     }
 }
 
@@ -361,21 +357,6 @@ void set_up_pixel_buf_ctrl() {
 
 void draw_box_line(struct Box box0, struct Box box1) {
     draw_line(box0.x, box0.y, box1.x, box1.y, box0.color);
-}
-
-void erase_lines(struct Box boxes[NUM_BOXES]) {
-    int i;
-    for (i = 0; i < NUM_BOXES; i++) {
-        if (boxes[i].prior_x != -1 && boxes[i].prior_y != -1)
-            draw_box_line(prior_box(boxes[i]), prior_box(boxes[(i + 1) % NUM_BOXES]));
-    }
-}
-
-void draw_lines(struct Box boxes[NUM_BOXES]) {
-    int i;
-    for (i = 0; i < NUM_BOXES; i++) {
-        draw_box_line(boxes[i], boxes[(i + 1) % NUM_BOXES]);
-    }
 }
 
 void set_up_edges(struct Box boxes[NUM_BOXES]) {
