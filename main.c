@@ -23,6 +23,7 @@
 #define BOX_LEN 10
 #define NUM_BOXES 6
 #define INIT_GRID_SIZE 4
+#define MAX_NUM_BOX_EDGE 3
 
 #define FALSE 0
 #define TRUE 1
@@ -30,6 +31,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+
+struct Edge {
+    int box_index_0;
+    int box_index_1;
+};
 
 struct Box {
     int x; 
@@ -43,6 +49,9 @@ struct Box {
     int prior_y;
 
     short int color;
+
+    struct Edge edges[MAX_NUM_BOX_EDGE];
+    int num_edges;
 };
 
 const int MAX_BOX_X = RESOLUTION_X - BOX_LEN;
@@ -77,20 +86,30 @@ void draw_box_line(struct Box box0, struct Box box1);
 void erase_lines(struct Box boxes[NUM_BOXES]);
 void draw_lines(struct Box boxes[NUM_BOXES]);
 
+void set_up_edges(struct Box boxes[NUM_BOXES]);
+void draw_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
+void draw_edges(struct Box boxes[NUM_BOXES]);
+void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
+void erase_edges(struct Box boxes[NUM_BOXES]);
+
 volatile int g_pixel_back_buffer; // global variable
 volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 
 int main(void) {
-    struct Box boxes[NUM_BOXES];
-    // set_up_random_boxes(boxes);
-    set_up_still_boxes(boxes);
     set_up_pixel_buf_ctrl();
+
+    struct Box boxes[NUM_BOXES];
+    set_up_random_boxes(boxes);
+    set_up_edges(boxes);
+    // set_up_still_boxes(boxes);
 
     while (1) {
         erase_boxes(boxes);
         // erase_lines(boxes);
+        erase_edges(boxes);
         draw_boxes(boxes);
         // draw_lines(boxes);
+        draw_edges(boxes);
         move_boxes(boxes);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
@@ -233,6 +252,8 @@ struct Box construct_box(int x, int y, int dx, int dy, short int color) {
     box.prior_y = -1;
 
     box.color = color;
+
+    box.num_edges = 0;
     return box;
 }
 
@@ -354,5 +375,48 @@ void draw_lines(struct Box boxes[NUM_BOXES]) {
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
         draw_box_line(boxes[i], boxes[(i + 1) % NUM_BOXES]);
+    }
+}
+
+void set_up_edges(struct Box boxes[NUM_BOXES]) {
+    int i;
+    for (i = 0; i < NUM_BOXES; i++) {
+        int a = i;
+        int b = (i + 1) % NUM_BOXES;
+        struct Edge edge = {a, b};
+        boxes[a].edges[boxes[a].num_edges] = edge;
+        boxes[a].num_edges++;
+        boxes[b].edges[boxes[b].num_edges] = edge;
+        boxes[b].num_edges++;
+    }
+}
+
+void draw_edge(struct Box boxes[NUM_BOXES], struct Edge edge) {
+    draw_box_line(boxes[edge.box_index_0], boxes[edge.box_index_1]);
+}
+
+void draw_edges(struct Box boxes[NUM_BOXES]) {
+    int i, j;
+    for (i = 0; i < NUM_BOXES; i++) {
+        for (j = 0; j < boxes[i].num_edges; j++) {
+            if (i == boxes[i].edges[j].box_index_0) {
+                draw_edge(boxes, boxes[i].edges[j]);
+            }
+        }
+    }
+}
+
+void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge) {
+    draw_box_line(prior_box(boxes[edge.box_index_0]), prior_box(boxes[edge.box_index_1]));
+}
+
+void erase_edges(struct Box boxes[NUM_BOXES]) {
+    int i, j;
+    for (i = 0; i < NUM_BOXES; i++) {
+        for (j = 0; j < boxes[i].num_edges; j++) {
+            if (i == boxes[i].edges[j].box_index_0) {
+                erase_edge(boxes, boxes[i].edges[j]);
+            }
+        }
     }
 }
