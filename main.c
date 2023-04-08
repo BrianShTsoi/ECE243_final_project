@@ -511,33 +511,44 @@ int new_edge_intersect(struct Box boxes[NUM_BOX_EDGES], struct Edge edge) {
     return FALSE;
 }
 
+struct Edge discover_new_edge(struct Box boxes[NUM_BOX_EDGES], int b0) {
+    int start = rand() % NUM_BOXES;
+    struct Edge new_edge;
+    struct Edge last_valid_new_edge;
+
+    int i;
+    for (i = start; i < NUM_BOXES + start; i++) {
+        int b1 = i - start;
+        if (b0 == b1) continue;
+
+        new_edge.b0 = b0 < b1 ? b0 : b1;
+        new_edge.b1 = b0 < b1 ? b1 : b0;
+
+        if (!edge_exist(boxes, new_edge) && !new_edge_intersect(boxes, new_edge)) {
+            last_valid_new_edge.b0 = new_edge.b0;
+            last_valid_new_edge.b1 = new_edge.b1;
+        }
+    }
+    return last_valid_new_edge;
+}
+
+void set_up_random_edge(struct Box boxes[NUM_BOXES], int b0) {
+    struct Edge new_edge = discover_new_edge(boxes, b0);
+    b0 = new_edge.b0;
+    int b1 = new_edge.b1;
+    boxes[b0].edges[boxes[b0].num_edges] = new_edge;
+    boxes[b0].num_edges++;
+    boxes[b1].edges[boxes[b1].num_edges] = new_edge;
+    boxes[b1].num_edges++;
+
+    draw_loop(boxes);
+}
+
 void set_up_random_edges(struct Box boxes[NUM_BOXES]) {
-    int i, j;
+    int i;
     for (i = 0; i < NUM_BOXES; i++) {
-        for (j = boxes[i].num_edges; j < NUM_BOX_EDGES; j++) {
-            int a, b, start, counter;
-            int candidate = -1;
-            start = rand() % NUM_BOXES;
-            struct Edge edge;
-
-            for (counter = start; counter < NUM_BOXES + start; counter++) {
-                a = i;
-                b = counter - start;
-                if (a == b) continue;
-
-                edge.b0 = a < b ? a : b;
-                edge.b1 = a < b ? b : a;
-                if (!edge_exist(boxes, edge) && !new_edge_intersect(boxes, edge)) {
-                    break;
-                }
-            }
-
-            boxes[a].edges[boxes[a].num_edges] = edge;
-            boxes[a].num_edges++;
-            boxes[b].edges[boxes[b].num_edges] = edge;
-            boxes[b].num_edges++;
-
-            draw_loop(boxes);
+        while (boxes[i].num_edges < NUM_BOX_EDGES) {
+            set_up_random_edge(boxes, i);
         }
     }
 }
@@ -621,8 +632,8 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
-    int counter = 2;
-    while (counter--) {
+    int i = 2;
+    while (i--) {
         erase_boxes(boxes);
         erase_edges(boxes);
         draw_boxes(boxes);
