@@ -19,6 +19,11 @@ int main(void) {
     config_GIC(); // configure the general interrupt controller
     config_PS2(); // configure pushbutton KEYs to generate interrupts
     enable_A9_interrupts(); // enable interrupts in the A9 processor
+
+    // Reset mouse
+    volatile int * PS2_ptr = (int *)PS2_BASE;
+    *(PS2_ptr) = 0xFF;
+
     while (1) // wait for an interrupt
     ;
 }
