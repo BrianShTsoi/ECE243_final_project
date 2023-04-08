@@ -35,7 +35,7 @@
 #define RESOLUTION_Y 240
 
 /* Constants for animation */
-#define BOX_LEN 10
+#define RADIUS 5
 #define NUM_BOXES 6
 #define INIT_GRID_SIZE 8
 #define NUM_BOX_EDGES 3
@@ -75,8 +75,10 @@ struct Box {
     int num_edges;
 };
 
-const int MAX_BOX_X = RESOLUTION_X - BOX_LEN;
-const int MAX_BOX_Y =  RESOLUTION_Y - BOX_LEN;
+const int MIN_BOX_X = RADIUS - 1;
+const int MIN_BOX_Y = RADIUS - 1;
+const int MAX_BOX_X = RESOLUTION_X - RADIUS;
+const int MAX_BOX_Y =  RESOLUTION_Y - RADIUS;
 const short int COLORS[10] = {WHITE, YELLOW, RED, GREEN, BLUE, 
                                 CYAN, MAGENTA, GREY, PINK, ORANGE};
 
@@ -90,6 +92,7 @@ void wait_for_vsync();
 struct Box prior_box(struct Box box);
 void erase_box(struct Box box);
 void erase_boxes(struct Box boxes[NUM_BOXES]);
+void draw_circle(struct Box box);
 void draw_box(struct Box box);
 void draw_boxes(struct Box boxes[NUM_BOXES]);
 void move_box(struct Box* box);
@@ -244,13 +247,28 @@ void erase_boxes(struct Box boxes[NUM_BOXES]) {
     }
 }
 
-void draw_box(struct Box box) {
+void draw_circle(struct Box box) {
     int i, j;
-    for (i = box.x; i < box.x + BOX_LEN; i++) {
-        for (j = box.y; j < box.y + BOX_LEN; j++) {
-            plot_pixel(i, j, box.color);
+    for (i = -(RADIUS - 1); i < RADIUS; i++) {
+        for (j = -(RADIUS - 1); j < RADIUS; j++) {
+            if (sqrt((i * i) + (j * j)) < RADIUS) {
+                plot_pixel(box.x + i, box.y + j, box.color);
+            }
         }
     }
+}
+
+void draw_box(struct Box box) {
+    // Old implementation that actually draws a box
+    // int i, j;
+    // for (i = box.x - (RADIUS - 1); i < box.x + RADIUS; i++) {
+    //     for (j = box.y - (RADIUS - 1); j < box.y + RADIUS; j++) {
+    //         plot_pixel(i, j, box.color);
+    //     }
+    // }
+
+    // New implementation calls draw_circle
+    draw_circle(box);
 }
 
 void draw_boxes(struct Box boxes[NUM_BOXES]) {
@@ -268,10 +286,10 @@ void move_box(struct Box* box) {
 
     box->x += box->dx;
     box->y += box->dy;
-    if (box->x == 0 || box->x == MAX_BOX_X) {
+    if (box->x == MIN_BOX_X || box->x == MAX_BOX_X) {
         box->dx *= -1;
     }
-    if (box->y == 0 || box->y == MAX_BOX_Y) {
+    if (box->y == MIN_BOX_Y || box->y == MAX_BOX_Y) {
         box->dy *= -1;
     }
 }
@@ -302,19 +320,19 @@ struct Box construct_box(int x, int y, int dx, int dy, short int color) {
 }
 
 void set_up_moving_box(struct Box* box) {
-    int x = rand() % MAX_BOX_X;
-    int y = rand() % MAX_BOX_Y;
+    int x = rand() % (MAX_BOX_X - MIN_BOX_X) + MIN_BOX_X;
+    int y = rand() % (MAX_BOX_Y - MIN_BOX_Y) + MIN_BOX_Y;
     int dx = (rand() % 2 * 2) - 1;
     int dy = (rand() % 2 * 2) - 1;
     short int color = COLORS[rand() % 10];
 
-    if (x == 0) {
+    if (x == MIN_BOX_X) {
         dx = 1;
     } else if (x == MAX_BOX_X) {
         dx = -1;
     }
 
-    if (y == 0) {
+    if (y == MIN_BOX_Y) {
         dy = 1;
     } else if (y == MAX_BOX_Y) {
         dy = -1;
@@ -367,8 +385,8 @@ int box_colinear(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y
 }
 
 void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
-    int x_spacing = MAX_BOX_X / (INIT_GRID_SIZE + 1);
-    int y_spacing = MAX_BOX_Y / (INIT_GRID_SIZE + 1);
+    int x_spacing = (MAX_BOX_X - MIN_BOX_X) / (INIT_GRID_SIZE + 1);
+    int y_spacing = (MAX_BOX_Y - MIN_BOX_Y) / (INIT_GRID_SIZE + 1);
 
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
@@ -376,8 +394,8 @@ void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
         do {
             x = ((rand() % INIT_GRID_SIZE) + 1) * x_spacing;
             y = ((rand() % INIT_GRID_SIZE) + 1) * y_spacing;
-            // x = (rand() % MAX_BOX_X);
-            // y = (rand() % MAX_BOX_Y);
+            // x = (rand() % (MAX_BOX_X - MIN_BOX_X) + MIN_BOX_X);
+            // y = (rand() % (MAX_BOX_Y - MIN_BOX_Y) + MIN_BOX_Y);
 
         } while (coord_exist(boxes, i, x, y) || box_colinear(boxes, i, x, y));
 
@@ -585,9 +603,9 @@ void set_up_random_edges(struct Box boxes[NUM_BOXES]) {
 }
 
 void position_boxes(struct Box boxes[NUM_BOXES]) {
-    int center_x = MAX_BOX_X / 2;
-    int center_y = MAX_BOX_Y / 2;
-    int radius = MAX_BOX_Y / 3;
+    int center_x = (MAX_BOX_X - MIN_BOX_X) / 2;
+    int center_y = (MAX_BOX_Y - MIN_BOX_Y) / 2;
+    int radius = (MAX_BOX_Y - MIN_BOX_Y) / 3;
     double angle_rad = 2 * M_PI / NUM_BOXES;
 
     int i;
