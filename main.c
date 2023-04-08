@@ -112,7 +112,8 @@ int edge_exist(struct Box boxes[NUM_BOXES], struct Edge edge);
 
 int lines_intersect(double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
-int new_edge_intersect(struct Box boxes[NUM_BOX_EDGES], struct Edge edge);
+int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge);
+struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
 void position_boxes(struct Box boxes[NUM_BOXES]);
 
@@ -499,7 +500,7 @@ int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge 
                            (double) x2, (double) y2, (double) x3, (double) y3);
 }
 
-int new_edge_intersect(struct Box boxes[NUM_BOX_EDGES], struct Edge edge) {
+int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge) {
     int i, j;
     for (i = 0; i < NUM_BOXES; i++) {
         for (j = 0; j < boxes[i].num_edges; j++) {
@@ -511,25 +512,42 @@ int new_edge_intersect(struct Box boxes[NUM_BOX_EDGES], struct Edge edge) {
     return FALSE;
 }
 
-struct Edge discover_new_edge(struct Box boxes[NUM_BOX_EDGES], int b0) {
-    int start = rand() % NUM_BOXES;
-    struct Edge new_edge;
-    struct Edge last_valid_new_edge;
-
+struct Edge most_qualified_edge(struct Box boxes[NUM_BOXES], int b0, struct Edge edges[NUM_BOXES], int num_edges) {
+    struct Edge edge;
+    int min_num_box_edges = NUM_BOXES;
     int i;
-    for (i = start; i < NUM_BOXES + start; i++) {
-        int b1 = i - start;
+    for (i = 0; i < num_edges; i++) {
+        int b1 = edges[i].b0 == b0 ? edges[i].b1 : edges[i].b0;
+
+        if (min_num_box_edges >= boxes[b1].num_edges) {
+            min_num_box_edges = boxes[b1].num_edges;
+            edge.b0 = edges[i].b0;
+            edge.b1 = edges[i].b1;
+        }
+    }
+    return edge;
+}
+
+struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0) {
+    int num_valid_new_edges = 0;;
+    struct Edge valid_new_edges[NUM_BOXES];
+
+    int b1;
+    for (b1 = 0; b1 < NUM_BOXES; b1++) {
         if (b0 == b1) continue;
 
+        struct Edge new_edge;
         new_edge.b0 = b0 < b1 ? b0 : b1;
         new_edge.b1 = b0 < b1 ? b1 : b0;
 
         if (!edge_exist(boxes, new_edge) && !new_edge_intersect(boxes, new_edge)) {
-            last_valid_new_edge.b0 = new_edge.b0;
-            last_valid_new_edge.b1 = new_edge.b1;
+            valid_new_edges[num_valid_new_edges].b0 = new_edge.b0;
+            valid_new_edges[num_valid_new_edges].b1 = new_edge.b1;
+            num_valid_new_edges++;
         }
     }
-    return last_valid_new_edge;
+    // return valid_new_edges[rand() % num_valid_new_edges];
+    return most_qualified_edge(boxes, b0, valid_new_edges, num_valid_new_edges);
 }
 
 void set_up_random_edge(struct Box boxes[NUM_BOXES], int b0) {
