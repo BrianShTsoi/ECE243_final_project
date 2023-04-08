@@ -38,7 +38,7 @@
 #define BOX_LEN 10
 #define NUM_BOXES 6
 #define INIT_GRID_SIZE 8
-#define NUM_BOX_EDGE 2
+#define NUM_BOX_EDGES 2
 
 #define TOLERANCE 1e-9
 
@@ -71,7 +71,6 @@ struct Box {
 
     short int color;
 
-    // struct Edge edges[NUM_BOX_EDGE];
     struct Edge edges[NUM_BOXES];
     int num_edges;
 };
@@ -113,7 +112,7 @@ int edge_exist(struct Box boxes[NUM_BOXES], struct Edge edge);
 
 int lines_intersect(double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
-int new_edge_intersect(struct Box boxes[NUM_BOX_EDGE], struct Edge edge);
+int new_edge_intersect(struct Box boxes[NUM_BOX_EDGES], struct Edge edge);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
 void position_boxes(struct Box boxes[NUM_BOXES]);
 
@@ -500,7 +499,7 @@ int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge 
                            (double) x2, (double) y2, (double) x3, (double) y3);
 }
 
-int new_edge_intersect(struct Box boxes[NUM_BOX_EDGE], struct Edge edge) {
+int new_edge_intersect(struct Box boxes[NUM_BOX_EDGES], struct Edge edge) {
     int i, j;
     for (i = 0; i < NUM_BOXES; i++) {
         for (j = 0; j < boxes[i].num_edges; j++) {
@@ -515,23 +514,23 @@ int new_edge_intersect(struct Box boxes[NUM_BOX_EDGE], struct Edge edge) {
 void set_up_random_edges(struct Box boxes[NUM_BOXES]) {
     int i, j;
     for (i = 0; i < NUM_BOXES; i++) {
-        for (j = boxes[i].num_edges; j < NUM_BOX_EDGE; j++) {
+        for (j = boxes[i].num_edges; j < NUM_BOX_EDGES; j++) {
             int a, b, start, counter;
+            int candidate = -1;
             start = rand() % NUM_BOXES;
             struct Edge edge;
 
             for (counter = start; counter < NUM_BOXES + start; counter++) {
                 a = i;
                 b = counter - start;
+                if (a == b) continue;
 
-                if (a > b) swap(&a, &b);
-                edge.b0 = a;
-                edge.b1 = b;
-                if (a != b && !edge_exist(boxes, edge) && !new_edge_intersect(boxes, edge)) {
+                edge.b0 = a < b ? a : b;
+                edge.b1 = a < b ? b : a;
+                if (!edge_exist(boxes, edge) && !new_edge_intersect(boxes, edge)) {
                     break;
                 }
             }
-            assert(a != b && !edge_exist(boxes, edge) && !new_edge_intersect(boxes, edge));
 
             boxes[a].edges[boxes[a].num_edges] = edge;
             boxes[a].num_edges++;
