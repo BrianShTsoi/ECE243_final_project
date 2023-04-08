@@ -38,7 +38,7 @@
 #define BOX_LEN 10
 #define NUM_BOXES 6
 #define INIT_GRID_SIZE 8
-#define NUM_BOX_EDGES 2
+#define NUM_BOX_EDGES 3
 
 #define TOLERANCE 1e-9
 
@@ -114,6 +114,7 @@ int lines_intersect(double x0, double y0, double x1, double y1, double x2, doubl
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
 int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge);
 struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0);
+int set_up_random_edge(struct Box boxes[NUM_BOXES], int b0);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
 void position_boxes(struct Box boxes[NUM_BOXES]);
 
@@ -380,7 +381,7 @@ void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
 
         } while (coord_exist(boxes, i, x, y) || box_colinear(boxes, i, x, y));
 
-        short int color = COLORS[i];
+        short int color = COLORS[i % 10];
         boxes[i] = construct_box(x, y, 0, 0, color);
     }
     draw_loop(boxes);
@@ -547,11 +548,20 @@ struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0) {
         }
     }
     // return valid_new_edges[rand() % num_valid_new_edges];
-    return most_qualified_edge(boxes, b0, valid_new_edges, num_valid_new_edges);
+    if (num_valid_new_edges > 0) {
+        return most_qualified_edge(boxes, b0, valid_new_edges, num_valid_new_edges);
+    }
+    else {
+        struct Edge failed_edge = {-1, -1};
+        return failed_edge;
+    }
 }
 
-void set_up_random_edge(struct Box boxes[NUM_BOXES], int b0) {
+int set_up_random_edge(struct Box boxes[NUM_BOXES], int b0) {
     struct Edge new_edge = discover_new_edge(boxes, b0);
+    if (new_edge.b0 == -1 && new_edge.b1 == -1) {
+        return FALSE;
+    }
     b0 = new_edge.b0;
     int b1 = new_edge.b1;
     boxes[b0].edges[boxes[b0].num_edges] = new_edge;
@@ -560,13 +570,16 @@ void set_up_random_edge(struct Box boxes[NUM_BOXES], int b0) {
     boxes[b1].num_edges++;
 
     draw_loop(boxes);
+    return TRUE;
 }
 
 void set_up_random_edges(struct Box boxes[NUM_BOXES]) {
     int i;
     for (i = 0; i < NUM_BOXES; i++) {
         while (boxes[i].num_edges < NUM_BOX_EDGES) {
-            set_up_random_edge(boxes, i);
+            if (!set_up_random_edge(boxes, i)) {
+                break;
+            }
         }
     }
 }
