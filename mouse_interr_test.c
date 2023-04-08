@@ -1,5 +1,37 @@
 #include "address_map_arm.h"
 
+/* VGA colors */
+#define WHITE 0xFFFF
+#define YELLOW 0xFFE0
+#define RED 0xF800
+#define GREEN 0x07E0
+#define BLUE 0x001F
+#define CYAN 0x07FF
+#define MAGENTA 0xF81F
+#define GREY 0xC618
+#define PINK 0xFC18
+#define ORANGE 0xFC00
+#define BLACK 0x0000
+
+/* Screen size */
+#define RESOLUTION_X 320
+#define RESOLUTION_Y 240
+
+/* Graphics constants */
+#define BOX_LEN 10
+
+struct Box {
+    int x; 
+    int y;
+
+    int prev_x;
+    int prev_y;
+    int prior_x;
+    int prior_y;
+
+    short int color;
+};
+
 /* Function Declarations */
 void disable_A9_interrupts(void);
 void set_A9_IRQ_stack(void);
@@ -7,11 +39,30 @@ void config_GIC(void);
 void config_PS2(void);
 void enable_A9_interrupts(void);
 void PS2_ISR(void);
+int twoCompToInt(char value, char sign);
 void HEX_PS2(char, char, char);
 void config_interrupt(int, int);
+void set_up_pixel_buf_ctrl();
+void clear_screen();
+void wait_for_vsync();
+void plot_pixel(int x, int y, short int color);
+void erase_box(struct Box box);
+void draw_box(struct Box box);
+void move_box(struct Box* box);
+struct Box prior_box(struct Box box);
+struct Box construct_box(int x, int y, short int color);
 
 /* Byte packets for mouse */
 char byte1 = 0, byte2 = 0, byte3 = 0;
+int dx = 0, dy = 0;
+
+/* Display variables */
+volatile int g_pixel_back_buffer; // global variable
+volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
+
+const int MAX_BOX_X = RESOLUTION_X - BOX_LEN;
+const int MAX_BOX_Y =  RESOLUTION_Y - BOX_LEN;
+struct Box cursor;
 
 int main(void) {
     disable_A9_interrupts(); // disable interrupts in the A9 processor
@@ -24,8 +75,19 @@ int main(void) {
     volatile int * PS2_ptr = (int *)PS2_BASE;
     *(PS2_ptr) = 0xFF;
 
-    while (1) // wait for an interrupt
-    ;
+    cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, WHITE);
+
+    // Set up display
+    set_up_pixel_buf_ctrl();
+
+    while (1) {
+        erase_box(cursor);
+        draw_box(cursor);
+        move_box(&cursor);
+
+        wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+        g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
+    }
 }
 
 /* setup the KEY interrupts in the FPGA */
@@ -159,6 +221,51 @@ void PS2_ISR(void) {
         // mouse inserted; initialize sending of data
         *(PS2_ptr) = 0xF4;
     }
+
+    char x_sign = byte1 >> 4;
+    x_sign &= 0x1;
+    char y_sign = byte1 >> 5;
+    y_sign &= 0x1;
+
+    char x_overflow = byte1 >> 6;
+    x_overflow &= 0x1;
+    char y_overflow = byte1 >> 7;
+    y_overflow &= 0x1;
+
+    // Max dx/dy for overflow 
+    if (x_overflow == (char)0x01) {
+        if (x_sign == (char)0x01) {
+            dx = -25;
+        } else {
+            dx = 25;
+        }
+    } else {
+        dx = twoCompToInt(byte2, x_sign)/10;
+    }
+
+    if (y_overflow == (char)0x01) {
+        if (y_sign == (char)0x01) {
+            dy = -25;
+        } else {
+            dy = 25;
+        }
+    } else {
+        dy = twoCompToInt(byte3, y_sign)/10;
+    } 
+}
+
+// MOVE DRAWING STUFF INTO HERE
+
+int twoCompToInt(char value, char sign) {
+    int num;
+    
+    if (sign & 0x01) {
+        num = (int)((unsigned char)value | 0xFFFFFF00);
+    } else {
+        num = (int)value;
+    }
+
+    return num;
 }
 
 void HEX_PS2(char b1, char b2, char b3) {
@@ -187,4 +294,101 @@ void HEX_PS2(char b1, char b2, char b3) {
     /* drive the hex displays */
     *(HEX3_HEX0_ptr) = *(int *)(hex_segs);
     *(HEX5_HEX4_ptr) = *(int *)(hex_segs + 4);
+}
+
+void set_up_pixel_buf_ctrl() {
+    /* set front pixel buffer to start of FPGA On-chip memory */
+    *(G_PIXEL_BUF_CTRL_PTR + 1) = FPGA_ONCHIP_BASE; // first store the address in the back buffer
+    /* initialize a pointer to the pixel buffer, used by drawing functions */
+    g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1);
+    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
+    /* now, swap the front/back buffers, to set the front buffer location */
+    wait_for_vsync();
+
+    /* set back pixel buffer to start of SDRAM memory */
+    *(G_PIXEL_BUF_CTRL_PTR + 1) = SDRAM_BASE;
+    g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // we draw on the back buffer
+    clear_screen(); // g_pixel_back_buffer points to the pixel buffer
+}
+
+void clear_screen() {
+    int i;
+    int j;
+    for (i = 0; i < RESOLUTION_X; i++) {
+        for (j = 0; j < RESOLUTION_Y; j++) {
+            plot_pixel(i, j, BLACK); // 0 is black
+        }
+    }
+}
+
+void wait_for_vsync() {
+    register int status;
+
+    *G_PIXEL_BUF_CTRL_PTR = 1;
+
+    status = *(G_PIXEL_BUF_CTRL_PTR + 3);
+    while ((status & 0x01) != 0) {
+        status = *(G_PIXEL_BUF_CTRL_PTR + 3);
+    }
+}
+
+void plot_pixel(int x, int y, short int color) {
+    *(short int *)(g_pixel_back_buffer + (y << 10) + (x << 1)) = color;
+}
+
+struct Box prior_box(struct Box box) {
+    return construct_box(box.prior_x, box.prior_y, BLACK);
+}
+
+void erase_box(struct Box box) {
+    if (box.prior_x != -1 && box.prior_y != -1)
+        draw_box(prior_box(box));
+}
+
+void draw_box(struct Box box) {
+    int i, j;
+    for (i = box.x; i < box.x + BOX_LEN; i++) {
+        for (j = box.y; j < box.y + BOX_LEN; j++) {
+            plot_pixel(i, j, box.color);
+        }
+    }
+}
+
+void move_box(struct Box* box) {
+    box->prior_x = box->prev_x;
+    box->prior_y = box->prev_y;
+    box->prev_x = box->x;
+    box->prev_y = box->y;
+
+    box->x += dx;
+    box->y += dy;
+
+    if (box->x > MAX_BOX_X) {
+        box->x = MAX_BOX_X;
+    } else if (box->x < 0) {
+        box->x = 0;
+    }
+
+    if (box->y > MAX_BOX_Y) {
+        box->y = MAX_BOX_Y;
+    } else if (box->y < 0) {
+        box->y = 0;
+    }
+
+    dx = 0;
+    dy = 0;
+}
+
+struct Box construct_box(int x, int y, short int color) {
+    struct Box box;
+    box.x = x;
+    box.y = y;
+
+    box.prev_x = -1;
+    box.prev_y = -1;
+    box.prior_x = -1;
+    box.prior_y = -1;
+
+    box.color = color;
+    return box;
 }
