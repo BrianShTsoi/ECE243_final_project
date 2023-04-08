@@ -30,6 +30,8 @@
 #define FALSE 0
 #define TRUE 1
 
+#define _USE_MATH_DEFINES
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -88,7 +90,7 @@ int box_colinear(struct Box boxes[NUM_BOXES], int num_existing_box, int x, int y
 void set_up_still_boxes(struct Box boxes[NUM_BOXES]);
 void set_up_pixel_buf_ctrl();
 
-void draw_box_line(struct Box box0, struct Box box1);
+void draw_box_line(struct Box box0, struct Box box1, short int color);
 
 void set_up_cyclic_edges(struct Box boxes[NUM_BOXES]);
 int compare_edges(struct Edge edge0, struct Edge edge1);
@@ -98,6 +100,7 @@ int lines_intersect(double x0, double y0, double x1, double y1, double x2, doubl
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
 int new_edge_intersect(struct Box boxes[NUM_BOX_EDGE], struct Edge edge);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
+void position_boxes(struct Box boxes[NUM_BOXES]);
 
 void draw_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
 void draw_edges(struct Box boxes[NUM_BOXES]);
@@ -125,7 +128,12 @@ int main(void) {
         // set_up_cyclic_edges(boxes);
         set_up_random_edges(boxes);
 
-        draw_loop(boxes);
+        position_boxes(boxes);
+
+        int i;
+        for (i = 0; i < 10; i++) {
+            draw_loop(boxes);
+        }
 
     // for repeat testing
     }
@@ -378,8 +386,8 @@ void set_up_pixel_buf_ctrl() {
     clear_screen(); // g_pixel_back_buffer points to the pixel buffer
 }
 
-void draw_box_line(struct Box box0, struct Box box1) {
-    draw_line(box0.x, box0.y, box1.x, box1.y, WHITE);
+void draw_box_line(struct Box box0, struct Box box1, short int color) {
+    draw_line(box0.x, box0.y, box1.x, box1.y, color);
 }
 
 void set_up_cyclic_edges(struct Box boxes[NUM_BOXES]) {
@@ -520,8 +528,25 @@ void set_up_random_edges(struct Box boxes[NUM_BOXES]) {
     }
 }
 
+void position_boxes(struct Box boxes[NUM_BOXES]) {
+    int center_x = MAX_BOX_X / 2;
+    int center_y = MAX_BOX_Y / 2;
+    int radius = MAX_BOX_Y / 3;
+    double angle_rad = 2 * M_PI / NUM_BOXES;
+
+    int i;
+    for (i = 0; i < NUM_BOXES; i++) {
+        int x_new = center_x + radius * cos(i * angle_rad);
+        int y_new = center_y + radius * sin(i * angle_rad);
+
+        move_box(&boxes[i]);
+        boxes[i].x = x_new;
+        boxes[i].y = y_new;
+    }
+}
+
 void draw_edge(struct Box boxes[NUM_BOXES], struct Edge edge) {
-    draw_box_line(boxes[edge.b0], boxes[edge.b1]);
+    draw_box_line(boxes[edge.b0], boxes[edge.b1], WHITE);
 }
 
 void draw_edges(struct Box boxes[NUM_BOXES]) {
@@ -536,7 +561,7 @@ void draw_edges(struct Box boxes[NUM_BOXES]) {
 }
 
 void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge) {
-    draw_box_line(prior_box(boxes[edge.b0]), prior_box(boxes[edge.b1]));
+    draw_box_line(prior_box(boxes[edge.b0]), prior_box(boxes[edge.b1]), BLACK);
 }
 
 void erase_edges(struct Box boxes[NUM_BOXES]) {
@@ -582,13 +607,13 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
-    int counter = 1;
+    int counter = 2;
     while (counter--) {
         erase_boxes(boxes);
         erase_edges(boxes);
         draw_boxes(boxes);
         draw_edges(boxes);
-        // move_boxes(boxes);
+        move_boxes(boxes);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
