@@ -136,26 +136,20 @@ volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 int main(void) {
     srand(time(NULL));
     // for repeat testing
-    while (1) {
+    // while (1) {
 
-        // srand(time(NULL));
-        set_up_pixel_buf_ctrl();
+    set_up_pixel_buf_ctrl();
 
-        struct Box boxes[NUM_BOXES];
-        // set_up_moving_boxes(boxes);
-        set_up_still_boxes(boxes);
-        // set_up_cyclic_edges(boxes);
-        set_up_random_edges(boxes);
+    struct Box boxes[NUM_BOXES];
+    set_up_still_boxes(boxes);
+    set_up_random_edges(boxes);
 
-        position_boxes(boxes);
+    position_boxes(boxes);
 
-        int i;
-        for (i = 0; i < 10; i++) {
-            draw_loop(boxes);
-        }
+    draw_loop(boxes);
 
     // for repeat testing
-    }
+    // }
 }
 
 void plot_pixel(int x, int y, short int color) {
@@ -402,7 +396,6 @@ void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
         short int color = COLORS[i % 10];
         boxes[i] = construct_box(x, y, 0, 0, color);
     }
-    draw_loop(boxes);
 }
 
 void set_up_pixel_buf_ctrl() {
@@ -587,7 +580,6 @@ int set_up_random_edge(struct Box boxes[NUM_BOXES], int b0) {
     boxes[b1].edges[boxes[b1].num_edges] = new_edge;
     boxes[b1].num_edges++;
 
-    draw_loop(boxes);
     return TRUE;
 }
 
@@ -681,8 +673,7 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
-    int i = 2;
-    while (i--) {
+    while (1) {
         erase_boxes(boxes);
         erase_edges(boxes);
         draw_boxes(boxes);
