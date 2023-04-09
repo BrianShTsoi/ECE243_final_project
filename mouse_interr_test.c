@@ -39,7 +39,7 @@ void config_GIC(void);
 void config_PS2(void);
 void enable_A9_interrupts(void);
 void PS2_ISR(void);
-int twoCompToInt(char value, char sign);
+int twoCompToInt(char value, char sign, char overflow);
 void HEX_PS2(char, char, char);
 void config_interrupt(int, int);
 void set_up_pixel_buf_ctrl();
@@ -55,6 +55,7 @@ struct Box construct_box(int x, int y, short int color);
 /* Byte packets for mouse */
 char byte1 = 0, byte2 = 0, byte3 = 0;
 int dx = 0, dy = 0;
+int initialized = 0;
 
 /* Display variables */
 volatile int g_pixel_back_buffer; // global variable
@@ -217,52 +218,48 @@ void PS2_ISR(void) {
         byte2 = byte3;
         byte3 = PS2_data & 0xFF;
         HEX_PS2(byte1, byte2, byte3);
+
         if ((byte2 == (char)0xAA) && (byte3 == (char)0x00))
         // mouse inserted; initialize sending of data
         *(PS2_ptr) = 0xF4;
-    }
 
-    char x_sign = byte1 >> 4;
-    x_sign &= 0x1;
-    char y_sign = byte1 >> 5;
-    y_sign &= 0x1;
+        if ((byte2 == (char)0xFA) && (byte3 == (char)0xAA))
+        initialized = 1;
+        else if (initialized) {
+            char x_sign = byte1 >> 4;
+            x_sign &= 0x1;
+            char y_sign = byte1 >> 5;
+            y_sign &= 0x1;
 
-    char x_overflow = byte1 >> 6;
-    x_overflow &= 0x1;
-    char y_overflow = byte1 >> 7;
-    y_overflow &= 0x1;
+            char x_overflow = byte1 >> 6;
+            x_overflow &= 0x1;
+            char y_overflow = byte1 >> 7;
+            y_overflow &= 0x1;
 
-    // Max dx/dy for overflow 
-    if (x_overflow == (char)0x01) {
-        if (x_sign == (char)0x01) {
-            dx = -25;
-        } else {
-            dx = 25;
+            dx = twoCompToInt(byte2, x_sign, x_overflow);
+            dy = twoCompToInt(byte3, y_sign, y_overflow); 
+
+            // MOVE DRAWING STUFF INTO HERE
         }
-    } else {
-        dx = twoCompToInt(byte2, x_sign)/10;
     }
-
-    if (y_overflow == (char)0x01) {
-        if (y_sign == (char)0x01) {
-            dy = -25;
-        } else {
-            dy = 25;
-        }
-    } else {
-        dy = twoCompToInt(byte3, y_sign)/10;
-    } 
 }
 
-// MOVE DRAWING STUFF INTO HERE
+int twoCompToInt(char value, char sign, char overflow) {
+    int num = 0;
 
-int twoCompToInt(char value, char sign) {
-    int num;
+    // Max dx/dy for overflow 
+    if (overflow == (char)0x01) {
+        if (sign == (char)0x01) {
+            num = -25;
+        } else {
+            num = 25;
+        }
+    }
     
     if (sign & 0x01) {
-        num = (int)((unsigned char)value | 0xFFFFFF00);
+        num += (int)((unsigned char)value | 0xFFFFFF00);
     } else {
-        num = (int)value;
+        num += (int)value;
     }
 
     return num;
