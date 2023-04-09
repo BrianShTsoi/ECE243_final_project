@@ -214,6 +214,7 @@ void config_interrupt(int N, int CPU_target) {
 }
 
 void PS2_ISR(void) {
+	
     volatile int * PS2_ptr = (int *)PS2_BASE;
     int PS2_data, RVALID;
 
@@ -226,27 +227,29 @@ void PS2_ISR(void) {
             /* shift the next data byte into the display */
             byte1 = byte2;
             byte2 = byte3;
-            byte3 = PS2_data & 0xFFFF;
-            HEX_PS2(byte1, byte2, byte3);
-        }
-
-        if (read_enable == 0){
-            if ((byte2 == (char)0xAA) && (byte3 == (char)0x00)) {
-                // mouse inserted; initialize sending of data
-                *(PS2_ptr) = 0xF4;
-                read_enable = 1;
-            }
-            else {
-                packet_count++;
-            }
+            byte3 = PS2_data & 0xFF;
+			
+			if (read_enable == 0){
+				if ((byte2 == (char)0xAA) && (byte3 == (char)0x00)) {
+					// mouse inserted; initialize sending of data
+					*(PS2_ptr) = 0xF4;
+					read_enable = 1;
+				}
+			} else {
+				if (initialized == 0) {
+					if (byte3 == (char)0xFA) {
+						initialized = 1;
+					}
+				} else {
+					packet_count++;
+				}
+			}
         }
     }
+	HEX_PS2(byte1, byte2, byte3);
     packet_count = 0;
 
-    if (initialized == 0) {
-        if ((byte2 == (char)0xFA) && (byte3 == (char)0xAA))
-        initialized = 1;
-    } else if (initialized) {
+    if (initialized) {
         // Determine signed bits and overflow bits for x and y
         char x_sign = byte1 >> 4;
         x_sign &= 0x1;
@@ -259,7 +262,7 @@ void PS2_ISR(void) {
         y_overflow &= 0x1;
 
         cursor.dx = twoCompToInt(byte2, x_sign, x_overflow);
-        cursor.dy = twoCompToInt(byte3, y_sign, y_overflow); 
+        cursor.dy = -twoCompToInt(byte3, y_sign, y_overflow); 
         
         // Check if clicked to drag object
         char left_click = byte1 & 0x1;
@@ -292,9 +295,9 @@ int twoCompToInt(char value, char sign, char overflow) {
 
     // Convert
     if (sign & 0x01) {
-        num += (int)((unsigned char)value | 0xFFFFFF00);
+        num += ((int)((unsigned char)value | 0xFFFFFF00)/5);
     } else {
-        num += (int)value;
+        num += ((int)value/5);
     }
 
     return num;
