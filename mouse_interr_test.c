@@ -24,6 +24,9 @@ struct Box {
     int x; 
     int y;
 
+    int dx;
+    int dy;
+
     int prev_x;
     int prev_y;
     int prior_x;
@@ -50,11 +53,10 @@ void erase_box(struct Box box);
 void draw_box(struct Box box);
 void move_box(struct Box* box);
 struct Box prior_box(struct Box box);
-struct Box construct_box(int x, int y, short int color);
+struct Box construct_box(int x, int y, int dx, int dy, short int color);
 
 /* Byte packets for mouse */
 char byte1 = 0, byte2 = 0, byte3 = 0;
-int dx = 0, dy = 0;
 int initialized = 0;
 
 /* Display variables */
@@ -64,6 +66,7 @@ volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 const int MAX_BOX_X = RESOLUTION_X - BOX_LEN;
 const int MAX_BOX_Y =  RESOLUTION_Y - BOX_LEN;
 struct Box cursor;
+struct Box object;
 
 int main(void) {
     disable_A9_interrupts(); // disable interrupts in the A9 processor
@@ -76,12 +79,16 @@ int main(void) {
     volatile int * PS2_ptr = (int *)PS2_BASE;
     *(PS2_ptr) = 0xFF;
 
-    cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, WHITE);
+    cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
+    object = construct_box(MAX_BOX_X/4, MAX_BOX_Y/4, 0, 0, BLUE);
 
     // Set up display
     set_up_pixel_buf_ctrl();
 
     while (1) {
+        erase_box(object);
+        draw_box(object);
+        move_box(&object);
         erase_box(cursor);
         draw_box(cursor);
         move_box(&cursor);
@@ -216,7 +223,7 @@ void PS2_ISR(void) {
         /* shift the next data byte into the display */
         byte1 = byte2;
         byte2 = byte3;
-        byte3 = PS2_data & 0xFF;
+        byte3 = PS2_data & 0xFFFF;
         HEX_PS2(byte1, byte2, byte3);
 
         if ((byte2 == (char)0xAA) && (byte3 == (char)0x00))
@@ -236,10 +243,22 @@ void PS2_ISR(void) {
             char y_overflow = byte1 >> 7;
             y_overflow &= 0x1;
 
-            dx = twoCompToInt(byte2, x_sign, x_overflow);
-            dy = twoCompToInt(byte3, y_sign, y_overflow); 
-
-            // MOVE DRAWING STUFF INTO HERE
+            cursor.dx = twoCompToInt(byte2, x_sign, x_overflow);
+            cursor.dy = twoCompToInt(byte3, y_sign, y_overflow); 
+			
+			char left_click = byte1 & 0x1;
+			if (left_click == (char)0x01) {
+				cursor.color = GREEN;
+				if ((cursor.x + BOX_LEN >= object.x && cursor.x <= object.x + BOX_LEN) && 
+					(cursor.y + BOX_LEN >= object.y && cursor.y <= object.y + BOX_LEN)) {
+						object.dx = cursor.dx;
+						object.dy = cursor.dy;
+				}
+			} else {	
+				cursor.color = WHITE;
+				object.dx = 0;
+				object.dy = 0;
+			}
         }
     }
 }
@@ -334,7 +353,7 @@ void plot_pixel(int x, int y, short int color) {
 }
 
 struct Box prior_box(struct Box box) {
-    return construct_box(box.prior_x, box.prior_y, BLACK);
+    return construct_box(box.prior_x, box.prior_y, 0, 0, BLACK);
 }
 
 void erase_box(struct Box box) {
@@ -357,8 +376,8 @@ void move_box(struct Box* box) {
     box->prev_x = box->x;
     box->prev_y = box->y;
 
-    box->x += dx;
-    box->y += dy;
+    box->x += box->dx;
+    box->y += box->dy;
 
     if (box->x > MAX_BOX_X) {
         box->x = MAX_BOX_X;
@@ -372,14 +391,17 @@ void move_box(struct Box* box) {
         box->y = 0;
     }
 
-    dx = 0;
-    dy = 0;
+    box->dx = 0;
+    box->dy = 0;
 }
 
-struct Box construct_box(int x, int y, short int color) {
+struct Box construct_box(int x, int y, int dx, int dy, short int color) {
     struct Box box;
     box.x = x;
     box.y = y;
+
+    box.dx = dx;
+    box.dy = dy;
 
     box.prev_x = -1;
     box.prev_y = -1;
