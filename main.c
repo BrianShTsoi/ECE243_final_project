@@ -115,7 +115,8 @@ int edge_exist(struct Box boxes[NUM_BOXES], struct Edge edge);
 
 int lines_intersect(double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
-int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge);
+int edge_intersect_graph(struct Box boxes[NUM_BOXES], struct Edge edge);
+int any_edges_intersect(struct Box boxes[NUM_BOXES]);
 struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0);
 int set_up_random_edge(struct Box boxes[NUM_BOXES], int b0);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
@@ -512,11 +513,27 @@ int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge 
                            (double) x2, (double) y2, (double) x3, (double) y3);
 }
 
-int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge) {
+int edge_intersect_graph(struct Box boxes[NUM_BOXES], struct Edge edge) {
     int i, j;
     for (i = 0; i < NUM_BOXES; i++) {
         for (j = 0; j < boxes[i].num_edges; j++) {
+            // Ignore identical edges
+            if (edge.b0 == boxes[i].edges[j].b0 && edge.b1 == boxes[i].edges[j].b1) {
+                continue;
+            }
             if (edges_intersect(boxes, boxes[i].edges[j], edge)) {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+int any_edges_intersect(struct Box boxes[NUM_BOXES]) {
+    int i, j;
+    for (i = 0; i < NUM_BOXES; i++) {
+        for (j = 0; j < boxes[i].num_edges; j++) {
+            if (edge_intersect_graph(boxes, boxes[i].edges[j])) {
                 return TRUE;
             }
         }
@@ -552,7 +569,7 @@ struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0) {
         new_edge.b0 = b0 < b1 ? b0 : b1;
         new_edge.b1 = b0 < b1 ? b1 : b0;
 
-        if (!edge_exist(boxes, new_edge) && !new_edge_intersect(boxes, new_edge)) {
+        if (!edge_exist(boxes, new_edge) && !edge_intersect_graph(boxes, new_edge)) {
             valid_new_edges[num_valid_new_edges].b0 = new_edge.b0;
             valid_new_edges[num_valid_new_edges].b1 = new_edge.b1;
             num_valid_new_edges++;
