@@ -233,6 +233,7 @@ void PS2_ISR(void) {
         if ((byte2 == (char)0xFA) && (byte3 == (char)0xAA))
         initialized = 1;
         else if (initialized) {
+            // Determine signed bits and overflow bits for x and y
             char x_sign = byte1 >> 4;
             x_sign &= 0x1;
             char y_sign = byte1 >> 5;
@@ -246,6 +247,7 @@ void PS2_ISR(void) {
             cursor.dx = twoCompToInt(byte2, x_sign, x_overflow);
             cursor.dy = twoCompToInt(byte3, y_sign, y_overflow); 
 			
+            // Check if clicked to drag object
 			char left_click = byte1 & 0x1;
 			if (left_click == (char)0x01) {
 				cursor.color = GREEN;
@@ -274,7 +276,8 @@ int twoCompToInt(char value, char sign, char overflow) {
             num = 25;
         }
     }
-    
+
+    // Convert
     if (sign & 0x01) {
         num += (int)((unsigned char)value | 0xFFFFFF00);
     } else {
