@@ -19,6 +19,7 @@
 
 /* Graphics constants */
 #define BOX_LEN 10
+#define CURSOR_LEN 6
 
 struct Box {
     int x; 
@@ -52,6 +53,8 @@ void plot_pixel(int x, int y, short int color);
 void erase_box(struct Box box);
 void draw_box(struct Box box);
 void move_box(struct Box* box);
+void draw_cursor(struct Box box);
+void move_cursor(struct Box* box);
 struct Box prior_box(struct Box box);
 struct Box construct_box(int x, int y, int dx, int dy, short int color);
 
@@ -66,8 +69,11 @@ volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
 
 const int MAX_BOX_X = RESOLUTION_X - BOX_LEN;
 const int MAX_BOX_Y =  RESOLUTION_Y - BOX_LEN;
+const int MAX_CURSOR_X = RESOLUTION_X - CURSOR_LEN;
+const int MAX_CURSOR_Y = RESOLUTION_Y - CURSOR_LEN;
 struct Box cursor;
 struct Box object;
+struct Box object2;
 
 int main(void) {
     disable_A9_interrupts(); // disable interrupts in the A9 processor
@@ -82,17 +88,24 @@ int main(void) {
 
     cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
     object = construct_box(MAX_BOX_X/4, MAX_BOX_Y/4, 0, 0, BLUE);
+    object2 = construct_box(MAX_BOX_X*3/4, MAX_BOX_Y/4, 0, 0, RED);
 
     // Set up display
     set_up_pixel_buf_ctrl();
 
     while (1) {
         erase_box(object);
+        erase_box(object2);
+		erase_box(cursor);
+		
         draw_box(object);
         move_box(&object);
-        erase_box(cursor);
-        draw_box(cursor);
-        move_box(&cursor);
+
+        draw_box(object2);
+        move_box(&object2);
+        
+        draw_cursor(cursor);
+        move_cursor(&cursor);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
@@ -268,15 +281,21 @@ void PS2_ISR(void) {
         char left_click = byte1 & 0x1;
         if (left_click == (char)0x01) {
             cursor.color = GREEN;
-            if ((cursor.x + BOX_LEN >= object.x && cursor.x <= object.x + BOX_LEN) && 
-                (cursor.y + BOX_LEN >= object.y && cursor.y <= object.y + BOX_LEN)) {
+            if ((cursor.x + (CURSOR_LEN / 2) >= object.x && cursor.x <= object.x + (BOX_LEN * 3 / 4)) && 
+                (cursor.y + (CURSOR_LEN / 2) >= object.y && cursor.y <= object.y + (BOX_LEN * 3 / 4))) {
                     object.dx = cursor.dx;
                     object.dy = cursor.dy;
+            } else if ((cursor.x + (CURSOR_LEN / 2) >= object2.x && cursor.x <= object2.x + (BOX_LEN * 3 / 4)) && 
+                (cursor.y + (CURSOR_LEN / 2) >= object2.y && cursor.y <= object2.y + (BOX_LEN * 3 / 4))) {
+                    object2.dx = cursor.dx;
+                    object2.dy = cursor.dy;
             }
         } else {	
             cursor.color = WHITE;
             object.dx = 0;
             object.dy = 0;
+            object2.dx = 0;
+            object2.dy = 0;
         }
     }
 }
@@ -295,9 +314,9 @@ int twoCompToInt(char value, char sign, char overflow) {
 
     // Convert
     if (sign & 0x01) {
-        num += ((int)((unsigned char)value | 0xFFFFFF00)/5);
+        num += ((int)((unsigned char)value | 0xFFFFFF00)/3);
     } else {
-        num += ((int)value/5);
+        num += ((int)value/3);
     }
 
     return num;
@@ -389,6 +408,15 @@ void draw_box(struct Box box) {
     }
 }
 
+void draw_cursor(struct Box box) {
+    int i, j;
+    for (i = box.x; i < box.x + CURSOR_LEN; i++) {
+        for (j = box.y; j < box.y + CURSOR_LEN; j++) {
+            plot_pixel(i, j, box.color);
+        }
+    }
+}
+
 void move_box(struct Box* box) {
     box->prior_x = box->prev_x;
     box->prior_y = box->prev_y;
@@ -406,6 +434,31 @@ void move_box(struct Box* box) {
 
     if (box->y > MAX_BOX_Y) {
         box->y = MAX_BOX_Y;
+    } else if (box->y < 0) {
+        box->y = 0;
+    }
+
+    box->dx = 0;
+    box->dy = 0;
+}
+
+void move_cursor(struct Box* box) {
+    box->prior_x = box->prev_x;
+    box->prior_y = box->prev_y;
+    box->prev_x = box->x;
+    box->prev_y = box->y;
+
+    box->x += box->dx;
+    box->y += box->dy;
+
+    if (box->x > MAX_CURSOR_X) {
+        box->x = MAX_CURSOR_X;
+    } else if (box->x < 0) {
+        box->x = 0;
+    }
+
+    if (box->y > MAX_CURSOR_Y) {
+        box->y = MAX_CURSOR_Y;
     } else if (box->y < 0) {
         box->y = 0;
     }
