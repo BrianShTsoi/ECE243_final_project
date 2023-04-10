@@ -894,6 +894,8 @@ void PS2_ISR(void) {
         
         // Check if clicked to drag object
         char left_click = byte1 & 0x1;
+        char right_click = byte1 >> 1;
+        right_click &= 0x1;
         if (left_click == (char)0x01) {
             cursor.color = CYAN;
             int curr_box;
@@ -911,6 +913,22 @@ void PS2_ISR(void) {
                 objects[selected_box].dx = cursor.dx;
                 objects[selected_box].dy = cursor.dy;
             }
+        } else if (right_click == (char)0x01) {
+            // Reset
+			int disp_reset_count;
+			for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
+				clear_screen();
+				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+				g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
+			}			
+			
+			// Generate new configuration
+			cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
+
+			set_up_still_boxes(objects);
+			set_up_random_edges(objects);
+
+			position_boxes(objects);
         } else {	
             cursor.color = WHITE;
             selected_box = -1;
