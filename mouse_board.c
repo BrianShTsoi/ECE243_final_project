@@ -72,8 +72,8 @@ const int MAX_BOX_Y =  RESOLUTION_Y - BOX_LEN;
 const int MAX_CURSOR_X = RESOLUTION_X - CURSOR_LEN;
 const int MAX_CURSOR_Y = RESOLUTION_Y - CURSOR_LEN;
 struct Box cursor;
-struct Box object;
-struct Box object2;
+
+struct Box objects[4];
 
 int main(void) {
     disable_A9_interrupts(); // disable interrupts in the A9 processor
@@ -87,22 +87,25 @@ int main(void) {
     *(PS2_ptr) = 0xFF;
 
     cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
-    object = construct_box(MAX_BOX_X/4, MAX_BOX_Y/4, 0, 0, BLUE);
-    object2 = construct_box(MAX_BOX_X*3/4, MAX_BOX_Y/4, 0, 0, RED);
+    objects[0] = construct_box(MAX_BOX_X/4, MAX_BOX_Y/4, 0, 0, BLUE);
+    objects[1] = construct_box(MAX_BOX_X*3/4, MAX_BOX_Y/4, 0, 0, RED);
+    objects[2] = construct_box(MAX_BOX_X/4, MAX_BOX_Y*3/4, 0, 0, GREEN);
+    objects[3] = construct_box(MAX_BOX_X*3/4, MAX_BOX_Y*3/4, 0, 0, YELLOW);
 
     // Set up display
     set_up_pixel_buf_ctrl();
 
     while (1) {
-        erase_box(object);
-        erase_box(object2);
+        int current_box;
+        for (current_box = 0; current_box < 4; current_box++){
+            erase_box(objects[current_box]);
+        }
 		erase_box(cursor);
 		
-        draw_box(object);
-        move_box(&object);
-
-        draw_box(object2);
-        move_box(&object2);
+        for (current_box = 0; current_box < 4; current_box++){
+            draw_box(objects[current_box]);
+            move_box(&objects[current_box]);
+        }
         
         draw_cursor(cursor);
         move_cursor(&cursor);
@@ -280,22 +283,22 @@ void PS2_ISR(void) {
         // Check if clicked to drag object
         char left_click = byte1 & 0x1;
         if (left_click == (char)0x01) {
-            cursor.color = GREEN;
-            if ((cursor.x + (CURSOR_LEN / 2) >= object.x && cursor.x <= object.x + (BOX_LEN * 3 / 4)) && 
-                (cursor.y + (CURSOR_LEN / 2) >= object.y && cursor.y <= object.y + (BOX_LEN * 3 / 4))) {
-                    object.dx = cursor.dx;
-                    object.dy = cursor.dy;
-            } else if ((cursor.x + (CURSOR_LEN / 2) >= object2.x && cursor.x <= object2.x + (BOX_LEN * 3 / 4)) && 
-                (cursor.y + (CURSOR_LEN / 2) >= object2.y && cursor.y <= object2.y + (BOX_LEN * 3 / 4))) {
-                    object2.dx = cursor.dx;
-                    object2.dy = cursor.dy;
+            cursor.color = CYAN;
+            int curr_box;
+            for (curr_box = 0; curr_box < 4; curr_box++) {
+                if ((cursor.x + (CURSOR_LEN / 2) >= objects[curr_box].x && cursor.x <= objects[curr_box].x + (BOX_LEN * 3 / 4)) && 
+                    (cursor.y + (CURSOR_LEN / 2) >= objects[curr_box].y && cursor.y <= objects[curr_box].y + (BOX_LEN * 3 / 4))) {
+                        objects[curr_box].dx = cursor.dx;
+                        objects[curr_box].dy = cursor.dy;
+                }
             }
         } else {	
             cursor.color = WHITE;
-            object.dx = 0;
-            object.dy = 0;
-            object2.dx = 0;
-            object2.dy = 0;
+            int curr_box;
+            for (curr_box = 0; curr_box < 4; curr_box++) {
+                objects[curr_box].dx = 0;
+                objects[curr_box].dy = 0;
+            }
         }
     }
 }
