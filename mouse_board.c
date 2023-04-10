@@ -74,6 +74,7 @@ const int MAX_CURSOR_Y = RESOLUTION_Y - CURSOR_LEN;
 struct Box cursor;
 
 struct Box objects[4];
+int selected_box = -1;
 
 int main(void) {
     disable_A9_interrupts(); // disable interrupts in the A9 processor
@@ -285,15 +286,23 @@ void PS2_ISR(void) {
         if (left_click == (char)0x01) {
             cursor.color = CYAN;
             int curr_box;
-            for (curr_box = 0; curr_box < 4; curr_box++) {
-                if ((cursor.x + (CURSOR_LEN / 2) >= objects[curr_box].x && cursor.x <= objects[curr_box].x + (BOX_LEN * 3 / 4)) && 
-                    (cursor.y + (CURSOR_LEN / 2) >= objects[curr_box].y && cursor.y <= objects[curr_box].y + (BOX_LEN * 3 / 4))) {
-                        objects[curr_box].dx = cursor.dx;
-                        objects[curr_box].dy = cursor.dy;
+            if (selected_box == -1) {
+                for (curr_box = 0; curr_box < 4; curr_box++) {
+                    if ((cursor.x + (CURSOR_LEN / 2) >= objects[curr_box].x && cursor.x <= objects[curr_box].x + (BOX_LEN * 3 / 4)) && 
+                        (cursor.y + (CURSOR_LEN / 2) >= objects[curr_box].y && cursor.y <= objects[curr_box].y + (BOX_LEN * 3 / 4))) {
+                            selected_box = curr_box;
+                            break;
+                    }
                 }
+            }
+
+            if (selected_box != -1) {
+                objects[selected_box].dx = cursor.dx;
+                objects[selected_box].dy = cursor.dy;
             }
         } else {	
             cursor.color = WHITE;
+            selected_box = -1;
             int curr_box;
             for (curr_box = 0; curr_box < 4; curr_box++) {
                 objects[curr_box].dx = 0;
