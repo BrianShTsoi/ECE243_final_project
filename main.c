@@ -131,7 +131,8 @@ void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
 void erase_edges(struct Box boxes[NUM_BOXES]);
 
 void set_up_char_buf_ctrl();
-void draw_text();
+void draw_text(char* text, int len);
+void check_solved(struct Box boxes[NUM_BOXES]);
 
 void print_edges_info(struct Box boxes[NUM_BOXES]);
 void print_boxes_info(struct Box boxes[NUM_BOXES]);
@@ -691,13 +692,29 @@ void set_up_char_buf_ctrl() {
     wait_for_vsync();
 }
 
-void draw_text() {
+void draw_text(char* text, int len) {
     clear_char_buf();
-    char string[6] = "Hello";
-    int i;
-    for (i = 0; i < 6; i++) {
-        plot_char(i, 0, string[i]);
+    int i = CHAR_RESOLUTION_X / 2 - len / 2;
+    while(*text != '\0') {
+        plot_char(i, 0, *text);
+        i++;
+        text++;
     }
+}
+
+void greenify(struct Box boxes[NUM_BOXES]) {
+    int i;
+    for (i = 0; i < NUM_BOXES; i++) {
+        boxes[i].color = GREEN;
+    }
+}
+
+void check_solved(struct Box boxes[NUM_BOXES]) {
+    if (any_edges_intersect(boxes)) {
+        return;
+    }
+    greenify(boxes);
+    draw_text("YOU WIN!!!", 11);
 }
 
 void print_edges_info(struct Box boxes[NUM_BOXES]) {
@@ -732,13 +749,14 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
-    draw_text();
+    draw_text("Untangle it!", 13);
     while (1) {
         erase_boxes(boxes);
         erase_edges(boxes);
         draw_boxes(boxes);
         draw_edges(boxes);
         move_boxes(boxes);
+        check_solved(boxes);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
