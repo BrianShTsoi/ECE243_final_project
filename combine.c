@@ -88,7 +88,7 @@
 /* Constants for animation */
 #define CURSOR_LEN 3
 #define RADIUS 5
-#define NUM_BOXES 6
+#define NUM_BOXES 10
 #define INIT_GRID_SIZE 8
 #define NUM_BOX_EDGES 3
 
@@ -219,6 +219,8 @@ int selected_box = -1;
 char byte1 = 0, byte2 = 0, byte3 = 0;
 int initialized = 0;
 int read_enable = 0;
+
+int g_solved = FALSE;
 
 int main(void) {
     srand(time(NULL));
@@ -806,13 +808,14 @@ void greenify(struct Box boxes[NUM_BOXES]) {
 }
 
 void check_solved(struct Box boxes[NUM_BOXES]) {
-    if (any_edges_intersect(boxes)) {
+    if (any_edges_intersect(boxes) || g_solved) {
         return;
     }
     greenify(boxes);
     clear_char_buf();
     draw_text("YOU WIN!!!", 0, 11);
     draw_text("(Right click to change graph)", 1, 30);
+    g_solved = TRUE;
 }
 
 void print_edges_info(struct Box boxes[NUM_BOXES]) {
@@ -1079,6 +1082,7 @@ void PS2_ISR(void) {
                 clear_char_buf();
                 draw_text("Untangle it!", 0, 13);
                 draw_text("(Right click to change graph)", 1, 30);
+                g_solved = FALSE;
 				
 				// Draw out new configuration
 				for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
