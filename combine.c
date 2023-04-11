@@ -868,6 +868,7 @@ void PS2_ISR(void) {
 				if (initialized == 0) {
 					if (byte3 == (char)0xFA) {
 						initialized = 1;
+						return;
 					}
 				} else {
 					packet_count++;
@@ -916,7 +917,8 @@ void PS2_ISR(void) {
             }
         } else {
 			if (right_click == (char)0x01) {
-				// Reset
+				// Disable read
+				*(PS2_ptr) = 0xF5;
 				
 				// Generate new configuration
 				cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
@@ -930,15 +932,11 @@ void PS2_ISR(void) {
 				int disp_reset_count;
 				for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
 					clear_screen();
-					draw_edges(objects);
-					draw_boxes(objects);
-					draw_cursor(cursor);
 					wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 					g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
 				}						
 				
 				// Fixes random packet being sent after reset
-				*(PS2_ptr) = 0xF5;
 				*(PS2_ptr) = 0xFF;
 				read_enable = 0;
 				initialized = 0;
