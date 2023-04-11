@@ -808,7 +808,7 @@ void greenify(struct Box boxes[NUM_BOXES]) {
 }
 
 void check_solved(struct Box boxes[NUM_BOXES]) {
-    if (any_edges_intersect(boxes) || g_solved) {
+    if (g_solved || any_edges_intersect(boxes)) {
         return;
     }
     greenify(boxes);
