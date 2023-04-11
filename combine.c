@@ -715,8 +715,8 @@ void draw_loop(struct Box boxes[NUM_BOXES]) {
         erase_boxes(objects);
         erase_box(cursor);
         erase_edges(objects);
+		draw_edges(objects);
         draw_boxes(objects);
-        draw_edges(objects);
         move_boxes(objects);
 
         draw_cursor(cursor);
@@ -856,6 +856,7 @@ void PS2_ISR(void) {
             byte1 = byte2;
             byte2 = byte3;
             byte3 = PS2_data & 0xFF;
+            byte3 = PS2_data & 0xFF;
 			
 			if (read_enable == 0){
 				if ((byte2 == (char)0xAA) && (byte3 == (char)0x00)) {
@@ -913,23 +914,36 @@ void PS2_ISR(void) {
                 objects[selected_box].dx = cursor.dx;
                 objects[selected_box].dy = cursor.dy;
             }
-        } else if (right_click == (char)0x01) {
-            // Reset
-			int disp_reset_count;
-			for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
-				clear_screen();
-				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
-				g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
-			}			
+        } else {
+			if (right_click == (char)0x01) {
+				// Reset
+				
+				// Generate new configuration
+				cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
+
+				set_up_still_boxes(objects);
+				set_up_random_edges(objects);
+
+				position_boxes(objects);
+				
+				// Draw out new configuration
+				int disp_reset_count;
+				for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
+					clear_screen();
+					draw_edges(objects);
+					draw_boxes(objects);
+					draw_cursor(cursor);
+					wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+					g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
+				}						
+				
+				// Fixes random packet being sent after reset
+				*(PS2_ptr) = 0xF5;
+				*(PS2_ptr) = 0xFF;
+				read_enable = 0;
+				initialized = 0;
+			}	
 			
-			// Generate new configuration
-			cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
-
-			set_up_still_boxes(objects);
-			set_up_random_edges(objects);
-
-			position_boxes(objects);
-        } else {	
             cursor.color = WHITE;
             selected_box = -1;
             int curr_box;
