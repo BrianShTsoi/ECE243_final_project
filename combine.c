@@ -1065,6 +1065,7 @@ void PS2_ISR(void) {
 				set_up_random_edges(objects);
 
 				position_boxes(objects);
+                draw_text("Untangle it!", 13);
 				
 				// Draw out new configuration
 				int disp_reset_count;
