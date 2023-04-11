@@ -34,6 +34,9 @@
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
+#define CHAR_RESOLUTION_X 80
+#define CHAR_RESOLUTION_Y 60
+
 /* Constants for animation */
 #define RADIUS 5
 #define NUM_BOXES 6
@@ -115,7 +118,8 @@ int edge_exist(struct Box boxes[NUM_BOXES], struct Edge edge);
 
 int lines_intersect(double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
-int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge);
+int edge_intersect_graph(struct Box boxes[NUM_BOXES], struct Edge edge);
+int any_edges_intersect(struct Box boxes[NUM_BOXES]);
 struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0);
 int set_up_random_edge(struct Box boxes[NUM_BOXES], int b0);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
@@ -126,12 +130,18 @@ void draw_edges(struct Box boxes[NUM_BOXES]);
 void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
 void erase_edges(struct Box boxes[NUM_BOXES]);
 
+void set_up_char_buf_ctrl();
+void draw_text(char* text, int len);
+void check_solved(struct Box boxes[NUM_BOXES]);
+
 void print_edges_info(struct Box boxes[NUM_BOXES]);
 void print_boxes_info(struct Box boxes[NUM_BOXES]);
 void draw_loop(struct Box boxes[NUM_BOXES]);
 
-volatile int g_pixel_back_buffer; // global variable
+volatile int g_pixel_back_buffer;
+volatile int g_char_buffer = FPGA_CHAR_BASE;
 volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
+volatile int * const G_CHAR_BUF_CTRL_PTR = (int *) CHAR_BUF_CTRL_BASE;
 
 int main(void) {
     srand(time(NULL));
@@ -139,6 +149,7 @@ int main(void) {
     // while (1) {
 
     set_up_pixel_buf_ctrl();
+    // set_up_char_buf_ctrl();
 
     struct Box boxes[NUM_BOXES];
     set_up_still_boxes(boxes);
@@ -157,8 +168,7 @@ void plot_pixel(int x, int y, short int color) {
 }
 
 void clear_screen() {
-    int i;
-    int j;
+    int i, j;
     for (i = 0; i < RESOLUTION_X; i++) {
         for (j = 0; j < RESOLUTION_Y; j++) {
             plot_pixel(i, j, BLACK); // 0 is black
@@ -215,14 +225,15 @@ void swap_double(double* num0, double* num1) {
 }
 
 void wait_for_vsync() {
-    register int status;
-
+    register int pixel_status;
+    // register int char_status
     *G_PIXEL_BUF_CTRL_PTR = 1;
+    // *G_CHAR_BUF_CTRL_PTR = 1;
 
-    status = *(G_PIXEL_BUF_CTRL_PTR + 3);
-    while ((status & 0x01) != 0) {
-        status = *(G_PIXEL_BUF_CTRL_PTR + 3);
-    }
+    do {
+        pixel_status = *(G_PIXEL_BUF_CTRL_PTR + 3);
+        // char_status = *(G_CHAR_BUF_CTRL_PTR + 3);
+    } while ((pixel_status & 0x01) /*&& (char_status & 0x01)*/);
 }
 
 struct Box prior_box(struct Box box) {
@@ -512,11 +523,27 @@ int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge 
                            (double) x2, (double) y2, (double) x3, (double) y3);
 }
 
-int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge) {
+int edge_intersect_graph(struct Box boxes[NUM_BOXES], struct Edge edge) {
     int i, j;
     for (i = 0; i < NUM_BOXES; i++) {
         for (j = 0; j < boxes[i].num_edges; j++) {
+            // Ignore identical edges
+            if (edge.b0 == boxes[i].edges[j].b0 && edge.b1 == boxes[i].edges[j].b1) {
+                continue;
+            }
             if (edges_intersect(boxes, boxes[i].edges[j], edge)) {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+int any_edges_intersect(struct Box boxes[NUM_BOXES]) {
+    int i, j;
+    for (i = 0; i < NUM_BOXES; i++) {
+        for (j = 0; j < boxes[i].num_edges; j++) {
+            if (edge_intersect_graph(boxes, boxes[i].edges[j])) {
                 return TRUE;
             }
         }
@@ -552,7 +579,7 @@ struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0) {
         new_edge.b0 = b0 < b1 ? b0 : b1;
         new_edge.b1 = b0 < b1 ? b1 : b0;
 
-        if (!edge_exist(boxes, new_edge) && !new_edge_intersect(boxes, new_edge)) {
+        if (!edge_exist(boxes, new_edge) && !edge_intersect_graph(boxes, new_edge)) {
             valid_new_edges[num_valid_new_edges].b0 = new_edge.b0;
             valid_new_edges[num_valid_new_edges].b1 = new_edge.b1;
             num_valid_new_edges++;
@@ -641,6 +668,55 @@ void erase_edges(struct Box boxes[NUM_BOXES]) {
     }
 }
 
+void plot_char(int x, int y, char c) {
+    *(char *)(g_char_buffer + (y << 7) + x) = c;
+}
+
+void clear_char_buf() {
+    int i, j;
+    for (i = 0; i < CHAR_RESOLUTION_X; i++) {
+        for (j = 0; j < CHAR_RESOLUTION_Y; j++) {
+            plot_char(i, j, ' '); // 0 is black
+        }
+    }
+}
+
+void set_up_char_buf_ctrl() {
+    *(G_CHAR_BUF_CTRL_PTR + 1) = FPGA_CHAR_BASE;
+    g_char_buffer = *(G_CHAR_BUF_CTRL_PTR + 1);
+    clear_char_buf();
+    wait_for_vsync();
+    *(G_CHAR_BUF_CTRL_PTR + 1) = FPGA_CHAR_BASE;
+    g_char_buffer = *(G_CHAR_BUF_CTRL_PTR + 1);
+    clear_char_buf();
+    wait_for_vsync();
+}
+
+void draw_text(char* text, int len) {
+    clear_char_buf();
+    int i = CHAR_RESOLUTION_X / 2 - len / 2;
+    while(*text != '\0') {
+        plot_char(i, 0, *text);
+        i++;
+        text++;
+    }
+}
+
+void greenify(struct Box boxes[NUM_BOXES]) {
+    int i;
+    for (i = 0; i < NUM_BOXES; i++) {
+        boxes[i].color = GREEN;
+    }
+}
+
+void check_solved(struct Box boxes[NUM_BOXES]) {
+    if (any_edges_intersect(boxes)) {
+        return;
+    }
+    greenify(boxes);
+    draw_text("YOU WIN!!!", 11);
+}
+
 void print_edges_info(struct Box boxes[NUM_BOXES]) {
     printf("PRINTING EDGE INFO................\r\n");
     int i, j;
@@ -673,12 +749,14 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
+    draw_text("Untangle it!", 13);
     while (1) {
         erase_boxes(boxes);
         erase_edges(boxes);
         draw_boxes(boxes);
         draw_edges(boxes);
         move_boxes(boxes);
+        check_solved(boxes);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
