@@ -790,7 +790,6 @@ void set_up_char_buf_ctrl() {
 }
 
 void draw_text(char* text, int row, int len) {
-    clear_char_buf();
     int i = CHAR_RESOLUTION_X / 2 - len / 2;
     while(*text != '\0') {
         plot_char(i, row, *text);
@@ -811,7 +810,9 @@ void check_solved(struct Box boxes[NUM_BOXES]) {
         return;
     }
     greenify(boxes);
+    clear_char_buf();
     draw_text("YOU WIN!!!", 0, 11);
+    draw_text("(Right click to change graph)", 1, 30);
 }
 
 void print_edges_info(struct Box boxes[NUM_BOXES]) {
@@ -846,6 +847,7 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
+    clear_char_buf();
     draw_text("Untangle it!", 0, 13);
     draw_text("(Right click to change graph)", 1, 30);
     while (1) {
@@ -1074,6 +1076,7 @@ void PS2_ISR(void) {
 				set_up_random_edges(objects);
 
 				position_boxes(objects);
+                clear_char_buf();
                 draw_text("Untangle it!", 0, 13);
                 draw_text("(Right click to change graph)", 1, 30);
 				
