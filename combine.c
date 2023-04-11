@@ -180,7 +180,7 @@ void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
 void erase_edges(struct Box boxes[NUM_BOXES]);
 
 void set_up_char_buf_ctrl();
-void draw_text(char* text, int len);
+void draw_text(char* text, int row, int len);
 void check_solved(struct Box boxes[NUM_BOXES]);
 
 void print_edges_info(struct Box boxes[NUM_BOXES]);
@@ -789,11 +789,11 @@ void set_up_char_buf_ctrl() {
     wait_for_vsync();
 }
 
-void draw_text(char* text, int len) {
+void draw_text(char* text, int row, int len) {
     clear_char_buf();
     int i = CHAR_RESOLUTION_X / 2 - len / 2;
     while(*text != '\0') {
-        plot_char(i, 0, *text);
+        plot_char(i, row, *text);
         i++;
         text++;
     }
@@ -811,7 +811,7 @@ void check_solved(struct Box boxes[NUM_BOXES]) {
         return;
     }
     greenify(boxes);
-    draw_text("YOU WIN!!!", 11);
+    draw_text("YOU WIN!!!", 0, 11);
 }
 
 void print_edges_info(struct Box boxes[NUM_BOXES]) {
@@ -846,7 +846,8 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
-    draw_text("Untangle it!", 13);
+    draw_text("Untangle it!", 0, 13);
+    draw_text("(Right click to change graph)", 1, 30);
     while (1) {
         erase_boxes(objects);
         erase_box(cursor);
@@ -1065,7 +1066,8 @@ void PS2_ISR(void) {
 				set_up_random_edges(objects);
 
 				position_boxes(objects);
-                draw_text("Untangle it!", 13);
+                draw_text("Untangle it!", 0, 13);
+                draw_text("(Right click to change graph)", 1, 30);
 				
 				// Draw out new configuration
 				int disp_reset_count;
