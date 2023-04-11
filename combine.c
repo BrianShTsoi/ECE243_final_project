@@ -1058,6 +1058,14 @@ void PS2_ISR(void) {
 			if (right_click == (char)0x01) {
 				// Disable read
 				*(PS2_ptr) = 0xF5;
+				int disp_reset_count;
+				for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
+                    erase_boxes(objects);
+                    erase_edges(objects);
+                    erase_box(cursor);
+					wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+					g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer
+				}						
 				
 				// Generate new configuration
 				cursor = construct_box(MAX_BOX_X/2, MAX_BOX_Y/2, 0, 0, WHITE);
@@ -1070,7 +1078,6 @@ void PS2_ISR(void) {
                 draw_text("(Right click to change graph)", 1, 30);
 				
 				// Draw out new configuration
-				int disp_reset_count;
 				for (disp_reset_count = 0; disp_reset_count < 3; disp_reset_count++) {
 					clear_screen();
 					wait_for_vsync(); // swap front and back buffers on VGA vertical sync
