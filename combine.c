@@ -1,4 +1,67 @@
-#include "address_map_arm.h"
+/* This files provides address values that exist in the system */
+
+#define BOARD                 "DE1-SoC"
+
+/* Memory */
+#define DDR_BASE              0x00000000
+#define DDR_END               0x3FFFFFFF
+#define A9_ONCHIP_BASE        0xFFFF0000
+#define A9_ONCHIP_END         0xFFFFFFFF
+#define SDRAM_BASE            0xC0000000
+#define SDRAM_END             0xC3FFFFFF
+#define FPGA_ONCHIP_BASE      0xC8000000
+#define FPGA_ONCHIP_END       0xC803FFFF
+#define FPGA_CHAR_BASE        0xC9000000
+#define FPGA_CHAR_END         0xC9001FFF
+
+/* Cyclone V FPGA devices */
+#define LEDR_BASE             0xFF200000
+#define HEX3_HEX0_BASE        0xFF200020
+#define HEX5_HEX4_BASE        0xFF200030
+#define SW_BASE               0xFF200040
+#define KEY_BASE              0xFF200050
+#define JP1_BASE              0xFF200060
+#define JP2_BASE              0xFF200070
+#define PS2_BASE              0xFF200100
+#define PS2_DUAL_BASE         0xFF200108
+#define JTAG_UART_BASE        0xFF201000
+#define JTAG_UART_2_BASE      0xFF201008
+#define IrDA_BASE             0xFF201020
+#define TIMER_BASE            0xFF202000
+#define AV_CONFIG_BASE        0xFF203000
+#define PIXEL_BUF_CTRL_BASE   0xFF203020
+#define CHAR_BUF_CTRL_BASE    0xFF203030
+#define AUDIO_BASE            0xFF203040
+#define VIDEO_IN_BASE         0xFF203060
+#define ADC_BASE              0xFF204000
+
+/* Cyclone V HPS devices */
+#define HPS_GPIO1_BASE        0xFF709000
+#define HPS_TIMER0_BASE       0xFFC08000
+#define HPS_TIMER1_BASE       0xFFC09000
+#define HPS_TIMER2_BASE       0xFFD00000
+#define HPS_TIMER3_BASE       0xFFD01000
+#define FPGA_BRIDGE           0xFFD0501C
+
+/* ARM A9 MPCORE devices */
+#define   PERIPH_BASE         0xFFFEC000    // base address of peripheral devices
+#define   MPCORE_PRIV_TIMER   0xFFFEC600    // PERIPH_BASE + 0x0600
+
+/* Interrupt controller (GIC) CPU interface(s) */
+#define MPCORE_GIC_CPUIF      0xFFFEC100    // PERIPH_BASE + 0x100
+#define ICCICR                0x00          // offset to CPU interface control reg
+#define ICCPMR                0x04          // offset to interrupt priority mask reg
+#define ICCIAR                0x0C          // offset to interrupt acknowledge reg
+#define ICCEOIR               0x10          // offset to end of interrupt reg
+/* Interrupt controller (GIC) distributor interface(s) */
+#define MPCORE_GIC_DIST       0xFFFED000    // PERIPH_BASE + 0x1000
+#define ICDDCR                0x00          // offset to distributor control reg
+#define ICDISER               0x100         // offset to interrupt set-enable regs
+#define ICDICER               0x180         // offset to interrupt clear-enable regs
+#define ICDIPTR               0x800         // offset to interrupt processor targets regs
+#define ICDICFR               0xC00         // offset to interrupt configuration regs
+
+
 
 /* VGA colors */
 #define WHITE 0xFFFF
@@ -18,6 +81,9 @@
 /* Screen size. */
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
+
+#define CHAR_RESOLUTION_X 80
+#define CHAR_RESOLUTION_Y 60
 
 /* Constants for animation */
 #define CURSOR_LEN 3
@@ -65,8 +131,7 @@ const int MIN_BOX_X = RADIUS + 1;
 const int MIN_BOX_Y = RADIUS + 1;
 const int MAX_BOX_X = RESOLUTION_X - RADIUS;
 const int MAX_BOX_Y =  RESOLUTION_Y - RADIUS;
-const short int COLORS[7] = {YELLOW, RED, GREEN, BLUE, 
-                                MAGENTA, PINK, ORANGE};
+const short int COLORS[6] = {YELLOW, RED, BLUE, MAGENTA, PINK, ORANGE};
 
 void plot_pixel(int x, int y, short int color);
 void clear_screen();
@@ -101,7 +166,9 @@ int edge_exist(struct Box boxes[NUM_BOXES], struct Edge edge);
 
 int lines_intersect(double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
 int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge edge1);
-int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge);
+int edge_intersect_graph(struct Box boxes[NUM_BOXES], struct Edge edge);
+int any_edges_intersect(struct Box boxes[NUM_BOXES]);
+struct Edge most_qualified_edge(struct Box boxes[NUM_BOXES], int b0, struct Edge edges[NUM_BOXES], int num_edges);
 struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0);
 int set_up_random_edge(struct Box boxes[NUM_BOXES], int b0);
 void set_up_random_edges(struct Box boxes[NUM_BOXES]);
@@ -111,6 +178,10 @@ void draw_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
 void draw_edges(struct Box boxes[NUM_BOXES]);
 void erase_edge(struct Box boxes[NUM_BOXES], struct Edge edge);
 void erase_edges(struct Box boxes[NUM_BOXES]);
+
+void set_up_char_buf_ctrl();
+void draw_text(char* text, int len);
+void check_solved(struct Box boxes[NUM_BOXES]);
 
 void print_edges_info(struct Box boxes[NUM_BOXES]);
 void print_boxes_info(struct Box boxes[NUM_BOXES]);
@@ -136,7 +207,9 @@ const int MIN_CURSOR_X = CURSOR_LEN + 1;
 const int MIN_CURSOR_Y = CURSOR_LEN + 1;
 
 volatile int g_pixel_back_buffer; // global variable
+volatile int g_char_buffer = FPGA_CHAR_BASE;
 volatile int * const G_PIXEL_BUF_CTRL_PTR = (int *) PIXEL_BUF_CTRL_BASE;
+volatile int * const G_CHAR_BUF_CTRL_PTR = (int *) CHAR_BUF_CTRL_BASE;
 
 struct Box cursor;
 struct Box objects[NUM_BOXES];
@@ -356,7 +429,7 @@ void set_up_moving_box(struct Box* box) {
     int y = rand() % (MAX_BOX_Y - MIN_BOX_Y) + MIN_BOX_Y;
     int dx = (rand() % 2 * 2) - 1;
     int dy = (rand() % 2 * 2) - 1;
-    short int color = COLORS[rand() % 10];
+    short int color = COLORS[rand() % 6];
 
     if (x == MIN_BOX_X) {
         dx = 1;
@@ -431,7 +504,7 @@ void set_up_still_boxes(struct Box boxes[NUM_BOXES]) {
 
         } while (coord_exist(boxes, i, x, y) || box_colinear(boxes, i, x, y));
 
-        short int color = COLORS[i % 10];
+        short int color = COLORS[i % 6];
         boxes[i] = construct_box(x, y, 0, 0, color);
     }
 }
@@ -550,7 +623,7 @@ int edges_intersect(struct Box boxes[NUM_BOXES], struct Edge edge0, struct Edge 
                            (double) x2, (double) y2, (double) x3, (double) y3);
 }
 
-int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge) {
+int edge_intersect_graph(struct Box boxes[NUM_BOXES], struct Edge edge) {
     int i, j;
     for (i = 0; i < NUM_BOXES; i++) {
         for (j = 0; j < boxes[i].num_edges; j++) {
@@ -561,6 +634,19 @@ int new_edge_intersect(struct Box boxes[NUM_BOXES], struct Edge edge) {
     }
     return FALSE;
 }
+
+int any_edges_intersect(struct Box boxes[NUM_BOXES]) {
+    int i, j;
+    for (i = 0; i < NUM_BOXES; i++) {
+        for (j = 0; j < boxes[i].num_edges; j++) {
+            if (edge_intersect_graph(boxes, boxes[i].edges[j])) {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
 
 struct Edge most_qualified_edge(struct Box boxes[NUM_BOXES], int b0, struct Edge edges[NUM_BOXES], int num_edges) {
     struct Edge edge;
@@ -590,7 +676,7 @@ struct Edge discover_new_edge(struct Box boxes[NUM_BOXES], int b0) {
         new_edge.b0 = b0 < b1 ? b0 : b1;
         new_edge.b1 = b0 < b1 ? b1 : b0;
 
-        if (!edge_exist(boxes, new_edge) && !new_edge_intersect(boxes, new_edge)) {
+        if (!edge_exist(boxes, new_edge) && !edge_intersect_graph(boxes, new_edge)) {
             valid_new_edges[num_valid_new_edges].b0 = new_edge.b0;
             valid_new_edges[num_valid_new_edges].b1 = new_edge.b1;
             num_valid_new_edges++;
@@ -679,6 +765,55 @@ void erase_edges(struct Box boxes[NUM_BOXES]) {
     }
 }
 
+void plot_char(int x, int y, char c) {
+    *(char *)(g_char_buffer + (y << 7) + x) = c;
+}
+
+void clear_char_buf() {
+    int i, j;
+    for (i = 0; i < CHAR_RESOLUTION_X; i++) {
+        for (j = 0; j < CHAR_RESOLUTION_Y; j++) {
+            plot_char(i, j, ' '); // 0 is black
+        }
+    }
+}
+
+void set_up_char_buf_ctrl() {
+    *(G_CHAR_BUF_CTRL_PTR + 1) = FPGA_CHAR_BASE;
+    g_char_buffer = *(G_CHAR_BUF_CTRL_PTR + 1);
+    clear_char_buf();
+    wait_for_vsync();
+    *(G_CHAR_BUF_CTRL_PTR + 1) = FPGA_CHAR_BASE;
+    g_char_buffer = *(G_CHAR_BUF_CTRL_PTR + 1);
+    clear_char_buf();
+    wait_for_vsync();
+}
+
+void draw_text(char* text, int len) {
+    clear_char_buf();
+    int i = CHAR_RESOLUTION_X / 2 - len / 2;
+    while(*text != '\0') {
+        plot_char(i, 0, *text);
+        i++;
+        text++;
+    }
+}
+
+void greenify(struct Box boxes[NUM_BOXES]) {
+    int i;
+    for (i = 0; i < NUM_BOXES; i++) {
+        boxes[i].color = GREEN;
+    }
+}
+
+void check_solved(struct Box boxes[NUM_BOXES]) {
+    if (any_edges_intersect(boxes)) {
+        return;
+    }
+    greenify(boxes);
+    draw_text("YOU WIN!!!", 11);
+}
+
 void print_edges_info(struct Box boxes[NUM_BOXES]) {
     printf("PRINTING EDGE INFO................\r\n");
     int i, j;
@@ -711,6 +846,7 @@ void print_boxes_info(struct Box boxes[NUM_BOXES]) {
 }
 
 void draw_loop(struct Box boxes[NUM_BOXES]) {
+    draw_text("Untangle it!", 13);
     while (1) {
         erase_boxes(objects);
         erase_box(cursor);
@@ -721,6 +857,8 @@ void draw_loop(struct Box boxes[NUM_BOXES]) {
 
         draw_cursor(cursor);
         move_cursor(&cursor);
+
+        check_solved(objects);
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         g_pixel_back_buffer = *(G_PIXEL_BUF_CTRL_PTR + 1); // new back buffer

@@ -78,8 +78,8 @@ struct Box {
     int num_edges;
 };
 
-const int MIN_BOX_X = RADIUS - 1;
-const int MIN_BOX_Y = RADIUS - 1;
+const int MIN_BOX_X = RADIUS + 1;
+const int MIN_BOX_Y = RADIUS + 1;
 const int MAX_BOX_X = RESOLUTION_X - RADIUS;
 const int MAX_BOX_Y =  RESOLUTION_Y - RADIUS;
 const short int COLORS[10] = {WHITE, YELLOW, RED, GREEN, BLUE, 
